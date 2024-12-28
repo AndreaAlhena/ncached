@@ -48,7 +48,7 @@ export class NcachedService {
      * @param {string[]} keys An array of strings to be used for searching the Map instance
      * @returns {Map<string, T> | ICacheObject} If a Map is found, it is returned. Otherwise, the nested ICacheObject is given (in this case, a recursive call is applied)
      * @throws {CacheServiceErrors.KeyNotFound} If the lookup key is not found into the ICacheObject, this error is thrown
-     * @throws {CacheServiceErrors.ValueNotFound} If the lookup key is not found into the Map, this error is thrown
+     * @throws {CacheServiceErrors.MapNotFound} If the lookup key is not a Map instance
      */
     private _findMap<T = any>(cacheObj: ICacheObject | Map<string, T>, ...keys: string[]): Map<string, T> {
       if (keys.length >= 1 && !(keys[0] in cacheObj)) {
