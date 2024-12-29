@@ -32,9 +32,14 @@ describe('NcachedService', () => {
     expect(() => (service as any)._findMap({key: null}, 'key')).toThrowError(CacheServiceErrors.MapNotFound, `A map has not been found in the cache object for the given key key`);
   });
   
-  it('[get / set method] should set a value and return a key from an existing map', () => {
+  it('[get / set method] should set a value and return a key from an existing map (2 keys)', () => {
     service.set('value', 'parent', 'child');
     expect(service.get('parent', 'child')).toEqual('value');
+  });
+
+  it('[get / set method] should set a value and return a key from an existing map (3 keys)', () => {
+    service.set('value', 'root', 'parent', 'child');
+    expect(service.get('root', 'parent', 'child')).toEqual('value');
   });
 
   it('[get method] should throw an error if less than two keys are provided', () => {
