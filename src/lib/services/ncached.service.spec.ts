@@ -8,7 +8,7 @@ describe('NcachedService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(NcachedService);
+    service = new NcachedService();
   });
 
   it('should be created', () => {
