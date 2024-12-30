@@ -8,5 +8,11 @@
   "dependencies": {
     "tslib": "^2.3.0"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "devDependencies": {
+    "puppeteer": "^23.11.1"
+  },
+  "scripts": {
+    "test": "ng test ncached --karma-config ./projects/ncached/karma.conf.js --progress --no-watch"
+  }
 }
