@@ -25,7 +25,7 @@ describe('NcachedService', () => {
   });
 
   it('[_findMap method] should throw an error if the lookup key is not found in ICacheObject', () => {
-    expect(() => (service as any)._findMap({}, 'key')).toThrowError(CacheServiceErrors.KeyNotFound, `The key key doesn't exist in the cache object`);
+    expect(() => (service as any)._findMap({}, 'key', 'key1')).toThrowError(CacheServiceErrors.KeyNotFound, `The key key doesn't exist in the cache object`);
   });
 
   it('[_findMap method] should throw an error if the lookup key is not a Map instance', () => {
@@ -37,7 +37,7 @@ describe('NcachedService', () => {
     expect(service.get('parent', 'child')).toEqual('value');
   });
 
-  it('[get / set method] should set a value and return a key from an existing map (3 keys)', () => {
+  it('[get / set method] should set a value and return the same from an existing map (3 keys)', () => {
     service.set('value', 'root', 'parent', 'child');
     expect(service.get('root', 'parent', 'child')).toEqual('value');
   });
@@ -47,6 +47,7 @@ describe('NcachedService', () => {
   });
 
   it('[get method] should throw an error if the lookup key is not found into the Map', () => {
-    expect(() => service.get('key1', 'key2')).toThrow(new CacheServiceErrors.KeyNotFound('key1'));
+    service.set('value', 'key1', 'key9');
+    expect(() => service.get('key1', 'key2')).toThrowError(CacheServiceErrors.ValueNotFound, 'A value has not been found in the Map for the given key2 key');
   });
 });

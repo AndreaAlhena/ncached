@@ -33,7 +33,7 @@ export class NcachedService {
   
       const map = this._findMap(this._cache, ...keys.slice(0, keys.length - 1));
       const mapKey = keys[keys.length - 1]; // Last key is the map key
-  
+
       if (!map.has(mapKey)) {
         throw new CacheServiceErrors.ValueNotFound(mapKey);
       }
@@ -51,7 +51,7 @@ export class NcachedService {
      * @throws {CacheServiceErrors.MapNotFound} If the lookup key is not a Map instance
      */
     private _findMap<T = any>(cacheObj: ICacheObject | Map<string, T>, ...keys: string[]): Map<string, T> {
-      if (keys.length >= 1 && !(keys[0] in cacheObj)) {
+      if (keys.length > 1 && !(keys[0] in cacheObj)) {
         throw new CacheServiceErrors.KeyNotFound(keys[0]);
       }
   
@@ -65,7 +65,7 @@ export class NcachedService {
         throw new CacheServiceErrors.MapNotFound(keys[0]);
       }
   
-      return this._findMap(obj as ICacheObject, ...keys.slice(1, keys.length - 1));
+      return this._findMap(obj as ICacheObject, ...keys.slice(1, keys.length));
     }
   
     /**
@@ -78,16 +78,20 @@ export class NcachedService {
      * @returns {ICacheObject | undefined} ICacheObject if is recursively looking for the right spot. undefined if the value has been set in the Map
      */
     private _setInCache<T = any>(cacheObj: ICacheObject, value: T, ...keys: string[]): ICacheObject | undefined {
+      if (!(keys[0] in cacheObj)) {
+        cacheObj[keys[0]] = {};
+      }
+
       if (keys.length > 2) {
-        return this._setInCache(cacheObj[keys[0]] as ICacheObject, value, ...keys.slice(1, keys.length - 1));
+        return this._setInCache(cacheObj[keys[0]] as ICacheObject, value, ...keys.slice(1, keys.length));
       }
   
-      if (!(this._cache[keys[0]] instanceof Map)) {
-        this._cache[keys[0]] = new Map();
+      if (!(cacheObj[keys[0]] instanceof Map)) {
+        cacheObj[keys[0]] = new Map();
       }
-  
-      (this._cache[keys[0]] as Map<string, T>).set(keys[1], value);
-  
+
+      (cacheObj[keys[0]] as Map<string, T>).set(keys[1], value);
+
       return;
     }
   
