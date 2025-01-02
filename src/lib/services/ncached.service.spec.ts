@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { NcachedService } from './ncached.service';
 import { CacheServiceErrors } from '../namespaces/cache-service-errors.namespace';
+import { ICacheObject } from '../interfaces/cache-object.interface';
 
 describe('NcachedService', () => {
   let service: NcachedService;
@@ -32,14 +33,10 @@ describe('NcachedService', () => {
     expect(() => (service as any)._findMap({key: null}, 'key')).toThrowError(CacheServiceErrors.MapNotFound, `A map has not been found in the cache object for the given key key`);
   });
   
-  it('[get / set method] should set a value and return a key from an existing map (2 keys)', () => {
-    service.set('value', 'parent', 'child');
-    expect(service.get('parent', 'child')).toEqual('value');
-  });
-
-  it('[get / set method] should set a value and return the same from an existing map (3 keys)', () => {
-    service.set('value', 'root', 'parent', 'child');
-    expect(service.get('root', 'parent', 'child')).toEqual('value');
+  it('[get method] should retrieve a value from an existing key', () => {
+    service['_cache'] = {key1: new Map<string, any>()};
+    (service['_cache']['key1'] as Map<string, any>).set('key2', 'value');
+    expect(service.get('key1', 'key2')).toEqual('value');
   });
 
   it('[get method] should throw an error if less than two keys are provided', () => {
@@ -47,7 +44,18 @@ describe('NcachedService', () => {
   });
 
   it('[get method] should throw an error if the lookup key is not found into the Map', () => {
-    service.set('value', 'key1', 'key9');
+    service['_cache'] = {key1: new Map<string, any>()};
+    (service['_cache']['key1'] as Map<string, any>).set('key9', 'value');
     expect(() => service.get('key1', 'key2')).toThrowError(CacheServiceErrors.ValueNotFound, 'A value has not been found in the Map for the given key2 key');
+  });
+
+  it('[set method] should set a value in a new map (2 keys)', () => {
+    service.set('value', 'parent', 'child');
+    expect((service['_cache'] as {parent: Map<string, any>}).parent.get('child')).toEqual('value');
+  });
+
+  it('[set method] should set a value in a new map (3 keys)', () => {
+    service.set('value', 'root', 'parent', 'child');
+    expect((service['_cache']['root'] as {parent: Map<string, any>}).parent.get('child')).toEqual('value');
   });
 });
