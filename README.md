@@ -1,63 +1,68 @@
 # Ncached
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.0.0.
+Just a simple Angular multi layer cache service
 
-## Code scaffolding
+Ncached has been thought as a multi layer cache for Angular applications. It's purpose is simple: allowing developers to create a layered (or multi-level) cache in a breeze.
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Installation
 
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Use npm (or yarn if you prefer)
 
 ```bash
-ng generate --help
+npm install ncached
 ```
 
-## Building
+## Usage
 
-To build the library, run:
+```typescript
+import { NcachedService } from 'ncached';
+```
 
+### Inject the service in a proper injection context
+```typescript
+class AppComponent {
+  private _ncachedService: NcachedService = inject(NcachedService);
+}
+```
+
+### Set a value
+This will create a Map into an object like this: {key1: new Map()}. The 'value' will be placed into the 'key2' key of the Map instance
+```typescript
+this._ncachedService.set('value', 'key1', 'key2');
+```
+
+### Set a value in a deeper level
+This will create a Map into an object like this: {root: {parent: new Map()}}. The 'value' will be placed into the 'child' key of the Map instance
+```typescript
+this._ncachedService.set('value', 'root', 'parent', 'child');
+```
+
+### Get a value
+Once you have properly set a value, you can use the get method to read from the cache. Accordingly to the two previous examples:
+```typescript
+this._ncachedService.get('key1', 'key2');
+this._ncachedService.get('root', 'parent', 'child');
+```
+
+## Errors
+Both the get and the set methods shall throw errors if something is going wrong, so you may be interested in wrapping these methods into a try / catch statement. Errors are declared into the CacheServiceErrors namespace.
+
+### &nbsp;&nbsp;&nbsp;&nbsp;Get method
+* InsufficientsKeysProvidedError - Less than 2 keywords have been provided
+* ValueNotFound - The last key provided has not been found into the Map instance, so no value has been found for the lookup key
+
+## Running tests
 ```bash
-ng build ncached
+npm run test
 ```
 
-This command will compile your project, and the build artifacts will be placed in the `dist/` directory.
+## Contributing
 
-### Publishing the Library
+Pull requests are welcome. For major changes, please open an issue first
+to discuss what you would like to change.
 
-Once the project is built, you can publish your library by following these steps:
+Please make sure to update tests as appropriate.
 
-1. Navigate to the `dist` directory:
-   ```bash
-   cd dist/ncached
-   ```
+## License
 
-2. Run the `npm publish` command to publish your library to the npm registry:
-   ```bash
-   npm publish
-   ```
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+[MIT](https://choosealicense.com/licenses/mit/)
