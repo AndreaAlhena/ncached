@@ -7,8 +7,8 @@
   },
   "name": "ng-ncached",
   "peerDependencies": {
-    "@angular/common": "^19.0.0",
-    "@angular/core": "^19.0.0"
+    "@angular/common": "^13.0.0",
+    "@angular/core": "^13.0.0"
   },
   "scripts": {
     "test": "ng test ncached --karma-config ./projects/ncached/karma.conf.js --progress --no-watch"
