@@ -13,7 +13,7 @@ ng-ncached has been thought as a multi layer cache for Angular applications. It'
 Use npm (or yarn if you prefer)
 
 ```bash
-npm install ncached
+npm install ng-ncached
 ```
 
 ## Usage
