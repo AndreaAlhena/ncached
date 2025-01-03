@@ -1,12 +1,12 @@
 <p align="center">
-   <img src="https://iili.io/2StGF3l.th.png" alt="ncached logo">
+   <img src="https://iili.io/2StGF3l.th.png" alt="ng-ncached logo">
 </p>
 
-# Ncached
+# ng-ncached
 
 Just a simple Angular multi layer cache service
 
-Ncached has been thought as a multi layer cache for Angular applications. It's purpose is simple: allowing developers to create a layered (or multi-level) cache in a breeze.
+ng-ncached has been thought as a multi layer cache for Angular applications. It's purpose is simple: allowing developers to create a layered (or multi-level) cache in a breeze.
 
 ## Installation
 
@@ -19,7 +19,7 @@ npm install ncached
 ## Usage
 
 ```typescript
-import { NcachedService } from 'ncached';
+import { NcachedService } from 'ng-ncached';
 ```
 
 ### Inject the service in a proper injection context
