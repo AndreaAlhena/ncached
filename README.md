@@ -1,3 +1,7 @@
+<p align="center">
+   <img src="https://iili.io/2StGF3l.th.png" alt="ncached logo">
+</p>
+
 # Ncached
 
 Just a simple Angular multi layer cache service
