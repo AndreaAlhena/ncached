@@ -48,6 +48,11 @@ this._ncachedService.get('key1', 'key2');
 this._ncachedService.get('root', 'parent', 'child');
 ```
 
+You may want to provide a generic type for defining the datatype of the retrieved item:
+```typescript
+this._ncachedService.get<string>('key1', 'key2');
+```
+
 ## Errors
 Both the get and the set methods shall throw errors if something is going wrong, so you may be interested in wrapping these methods into a try / catch statement. Errors are declared into the CacheServiceErrors namespace.
 
