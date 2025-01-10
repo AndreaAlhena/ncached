@@ -6,7 +6,7 @@
 
 Just a simple Angular multi layer cache service
 
-ng-ncached has been thought as a multi layer cache for Angular applications. It's purpose is simple: allowing developers to create a layered (or multi-level) cache in a breeze.
+ng-ncached has been thought as a multi layer cache for Angular applications. Its purpose is simple: allowing developers to create a layered (or multi-level) cache in a breeze.
 
 ## Installation
 
@@ -54,6 +54,8 @@ Both the get and the set methods shall throw errors if something is going wrong,
 ### &nbsp;&nbsp;&nbsp;&nbsp;Get method
 * InsufficientsKeysProvidedError - Less than 2 keywords have been provided
 * ValueNotFound - The last key provided has not been found into the Map instance, so no value has been found for the lookup key
+### &nbsp;&nbsp;&nbsp;&nbsp;Set method
+* InsufficientsKeysProvidedError - Less than 2 keywords have been provided
 
 ## Running tests
 ```bash
