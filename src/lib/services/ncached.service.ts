@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ICacheObject } from '../interfaces/cache-object.interface';
-import { CacheServiceErrors } from '../namespaces/cache-service-errors.namespace';
+import { NcachedServiceErrors } from '../namespaces/ncached-service-errors.namespace';
 
 @Injectable({
   providedIn: 'root'
@@ -22,20 +22,20 @@ export class NcachedService {
      *
      * @param {string[]} keys An array of strings to be used for searching the Map instance
      * @returns {T} If a Map is found, the element of type T is taken from it and returned
-     * @throws {CacheServiceErrors.InsufficientsKeysProvidedError} If less than two keys are provided, this error is thrown
-     * @throws {CacheServiceErrors.ValueNotFound} If the lookup key is not found into the Map, this error is thrown
+     * @throws {NcachedServiceErrors.InsufficientsKeysProvidedError} If less than two keys are provided, this error is thrown
+     * @throws {NcachedServiceErrors.ValueNotFound} If the lookup key is not found into the Map, this error is thrown
      */
     private _findInCache<T = any>(...keys: string[]): T {
       // At least two keys (module name / map key) should be provided
       if (keys.length < 2) {
-        throw new CacheServiceErrors.InsufficientsKeysProvidedError();
+        throw new NcachedServiceErrors.InsufficientsKeysProvidedError();
       }
   
       const map = this._findMap(this._cache, ...keys.slice(0, keys.length - 1));
       const mapKey = keys[keys.length - 1]; // Last key is the map key
 
       if (!map.has(mapKey)) {
-        throw new CacheServiceErrors.ValueNotFound(mapKey);
+        throw new NcachedServiceErrors.ValueNotFound(mapKey);
       }
   
       return map.get(mapKey);
@@ -47,12 +47,12 @@ export class NcachedService {
      * @param {ICacheObject} cacheObj The cache object. At the beginning, provide the _cache instance of this class
      * @param {string[]} keys An array of strings to be used for searching the Map instance
      * @returns {Map<string, T> | ICacheObject} If a Map is found, it is returned. Otherwise, the nested ICacheObject is given (in this case, a recursive call is applied)
-     * @throws {CacheServiceErrors.KeyNotFound} If the lookup key is not found into the ICacheObject, this error is thrown
-     * @throws {CacheServiceErrors.MapNotFound} If the lookup key is not a Map instance
+     * @throws {NcachedServiceErrors.KeyNotFound} If the lookup key is not found into the ICacheObject, this error is thrown
+     * @throws {NcachedServiceErrors.MapNotFound} If the lookup key is not a Map instance
      */
     private _findMap<T = any>(cacheObj: ICacheObject | Map<string, T>, ...keys: string[]): Map<string, T> {
       if (keys.length > 1 && !(keys[0] in cacheObj)) {
-        throw new CacheServiceErrors.KeyNotFound(keys[0]);
+        throw new NcachedServiceErrors.KeyNotFound(keys[0]);
       }
   
       const obj = (cacheObj as ICacheObject)[keys[0]];
@@ -62,7 +62,7 @@ export class NcachedService {
           return obj;
         }
   
-        throw new CacheServiceErrors.MapNotFound(keys[0]);
+        throw new NcachedServiceErrors.MapNotFound(keys[0]);
       }
   
       return this._findMap(obj as ICacheObject, ...keys.slice(1, keys.length));
@@ -78,6 +78,10 @@ export class NcachedService {
      * @returns {ICacheObject | undefined} ICacheObject if is recursively looking for the right spot. undefined if the value has been set in the Map
      */
     private _setInCache<T = any>(cacheObj: ICacheObject, value: T, ...keys: string[]): ICacheObject | undefined {
+      if (keys.length < 2) {
+        throw new NcachedServiceErrors.InsufficientsKeysProvidedError();
+      }
+      
       if (!(keys[0] in cacheObj)) {
         cacheObj[keys[0]] = {};
       }
