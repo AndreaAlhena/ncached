@@ -1,4 +1,4 @@
-export namespace CacheServiceErrors {
+export namespace NcachedServiceErrors {
     export class KeyNotFound extends Error {
       constructor(key: string) {
         super(`The key ${key} doesn't exist in the cache object`);
