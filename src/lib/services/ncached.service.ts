@@ -11,17 +11,33 @@ import { ISetOptions } from '../interfaces/set-options.interface';
 import { CacheServiceErrors } from '../namespaces/cache-service-errors.namespace';
 import { NCACHED_CONFIG } from '../tokens/ncached-config.token';
 
+/**
+ * Hierarchical in-memory caching service for Angular applications.
+ * Organizes cached data into namespaced Map instances with optional TTL,
+ * Observable integration, request deduplication, and localStorage persistence.
+ *
+ * @example
+ * ```typescript
+ * // Basic usage
+ * cache.set('Alice', 'users', 'currentUser');
+ * cache.get<string>('users', 'currentUser'); // 'Alice'
+ *
+ * // With TTL
+ * cache.set(tokenData, 'auth', 'token', { ttl: 3600000 });
+ *
+ * // Cache an HTTP call
+ * cache.cacheObservable(http.get('/users'), { ttl: 30000 }, 'api', 'users');
+ * ```
+ */
 @Injectable({
   providedIn: 'root'
 })
 export class NcachedService {
 
     /**
-   * An object that contains multiple Map instances
-   * Using multiple maps allows to organize cached data into modules / services
-   *
-   * @type {ICacheObject}
-   */
+     * The root cache object containing nested namespaces and Map instances.
+     * All cached data lives here in memory.
+     */
     private _cache: ICacheObject = {};
 
     /**
@@ -40,6 +56,10 @@ export class NcachedService {
      */
     private _inflight: Map<string, Observable<any>> = new Map();
 
+    /**
+     * @param config - Optional library configuration injected via NCACHED_CONFIG token.
+     *                 When null, the service operates without persistence.
+     */
     constructor(@Optional() @Inject(NCACHED_CONFIG) config: INcachedConfig | null) {
       this._config = config ?? null;
       this._compressor = config?.persistence?.compressor ?? new NoopCompressor();
@@ -54,8 +74,8 @@ export class NcachedService {
      * Deserializes a JSON string into an ICacheObject, reconstructing Maps.
      * Discards expired entries during reconstruction.
      *
-     * @param json - JSON string from _serialize()
-     * @returns Reconstructed ICacheObject
+     * @param json - JSON string produced by _serialize()
+     * @returns Reconstructed ICacheObject with Maps restored and expired entries removed
      */
     private _deserialize(json: string): ICacheObject {
       const parsed = JSON.parse(json);
@@ -63,13 +83,17 @@ export class NcachedService {
     }
 
     /**
-     * Recursively search for a value in the cache accordingly to the given keys.
-     * Unwraps the ICacheEntry and checks TTL expiration.
+     * Recursively searches for a value in the cache using the given keys.
+     * Unwraps the ICacheEntry and checks TTL expiration. If the entry is expired,
+     * it is deleted from the Map before throwing.
      *
-     * @param keys - Navigation keys (min 2). All but the last navigate the hierarchy; the last is the Map key.
-     * @returns The cached value of type T
-     * @throws {CacheServiceErrors.InsufficientsKeysProvidedError} If less than two keys are provided
-     * @throws {CacheServiceErrors.ValueNotFound} If the key is missing or the entry has expired
+     * @param keys - Navigation keys (min 2). All keys except the last navigate the hierarchy;
+     *               the last key is used for the Map lookup.
+     * @returns The cached value of type T, unwrapped from its ICacheEntry container
+     * @throws {CacheServiceErrors.InsufficientsKeysProvidedError} If fewer than two keys are provided
+     * @throws {CacheServiceErrors.KeyNotFound} If a navigation key does not exist in the hierarchy
+     * @throws {CacheServiceErrors.MapNotFound} If a navigation key does not point to a Map
+     * @throws {CacheServiceErrors.ValueNotFound} If the map entry key is missing or the entry has expired
      */
     private _findInCache<T = any>(...keys: string[]): T {
       if (keys.length < 2) {
@@ -94,13 +118,15 @@ export class NcachedService {
     }
   
     /**
-     * Recursively search for the Map object accordingly to the given keys
+     * Recursively navigates the cache hierarchy to locate the target Map.
+     * Each key except the last peels one level of ICacheObject nesting;
+     * the final key must resolve to a Map instance.
      *
-     * @param {ICacheObject} cacheObj The cache object. At the beginning, provide the _cache instance of this class
-     * @param {string[]} keys An array of strings to be used for searching the Map instance
-     * @returns {Map<string, T> | ICacheObject} If a Map is found, it is returned. Otherwise, the nested ICacheObject is given (in this case, a recursive call is applied)
-     * @throws {CacheServiceErrors.KeyNotFound} If the lookup key is not found into the ICacheObject, this error is thrown
-     * @throws {CacheServiceErrors.MapNotFound} If the lookup key is not a Map instance
+     * @param cacheObj - The current level of the cache hierarchy to search
+     * @param keys - One or more navigation keys leading to the target Map
+     * @returns The Map instance found at the end of the key chain
+     * @throws {CacheServiceErrors.KeyNotFound} If a navigation key does not exist in the hierarchy
+     * @throws {CacheServiceErrors.MapNotFound} If the final key does not point to a Map instance
      */
     private _findMap<T = any>(cacheObj: ICacheObject | Map<string, T>, ...keys: string[]): Map<string, T> {
       if (keys.length >= 1 && !(keys[0] in cacheObj)) {
@@ -122,7 +148,9 @@ export class NcachedService {
 
     /**
      * Hydrates the in-memory cache from localStorage.
-     * Discards expired entries. Starts with empty cache on any failure.
+     * Reads the stored snapshot, decompresses it, and deserializes into the cache structure.
+     * Expired entries are discarded during deserialization.
+     * On any failure (missing data, invalid JSON, decompression error), resets to an empty cache.
      */
     private _hydrate(): void {
       const storageKey = this._config?.persistence?.storageKey ?? 'ncached_snapshot';
@@ -142,11 +170,12 @@ export class NcachedService {
     }
 
     /**
-     * Parses the variadic arguments of set() to separate keys from options.
-     * If the last argument is an object, it is treated as ISetOptions.
+     * Parses the variadic arguments of set() to separate string keys from an optional
+     * trailing ISetOptions object. If the last element is a non-null object, it is
+     * extracted as options; all remaining elements are treated as string keys.
      *
-     * @param args - The mixed array of string keys and optional ISetOptions
-     * @returns Parsed keys and options
+     * @param args - Mixed array of string keys and an optional ISetOptions as the last element
+     * @returns An object with `keys` (string[]) and `options` (ISetOptions | undefined)
      */
     private _parseSetArgs(args: Array<string | ISetOptions>): { keys: string[]; options: ISetOptions | undefined } {
       const lastArg = args[args.length - 1];
@@ -158,7 +187,9 @@ export class NcachedService {
 
     /**
      * Persists the in-memory cache to localStorage.
-     * Serializes and compresses the cache. Handles QuotaExceededError gracefully.
+     * Serializes the cache to JSON, compresses it via the configured ICompressor,
+     * and writes the result to localStorage. If the write fails (e.g. QuotaExceededError),
+     * logs a warning and continues — the app keeps working, just without persistence.
      */
     private _persist(): void {
       const storageKey = this._config?.persistence?.storageKey ?? 'ncached_snapshot';
@@ -182,11 +213,11 @@ export class NcachedService {
     }
 
     /**
-     * Recursively restores Maps from the serialized format.
-     * Filters out expired entries based on their expiresAt timestamp.
+     * Recursively walks the parsed JSON tree, converting nodes with a `__mapEntries`
+     * array back into Map instances. Expired entries (expiresAt < now) are dropped.
      *
-     * @param obj - Parsed JSON object
-     * @returns ICacheObject with Maps restored
+     * @param obj - A plain object produced by JSON.parse of a _serialize() output
+     * @returns Reconstructed ICacheObject with Maps restored and expired entries filtered out
      */
     private _restoreMaps(obj: Record<string, any>): ICacheObject {
       const result: ICacheObject = {};
@@ -267,6 +298,16 @@ export class NcachedService {
      * No-op if the path does not exist.
      *
      * @param keys - Keys identifying the subtree to clear (min 1)
+     * @returns void
+     *
+     * @example
+     * ```typescript
+     * cache.set('a', 'users', 'key1');
+     * cache.set('b', 'users', 'key2');
+     * cache.clear('users'); // removes the entire 'users' namespace
+     *
+     * cache.clear('nonexistent'); // no-op, does not throw
+     * ```
      */
     public clear(...keys: string[]): void {
       if (keys.length === 0) {
@@ -288,6 +329,15 @@ export class NcachedService {
     /**
      * Wipes the entire in-memory cache.
      * If persistence is enabled, also removes the localStorage entry.
+     *
+     * @returns void
+     *
+     * @example
+     * ```typescript
+     * cache.set('a', 'mod1', 'key');
+     * cache.set('b', 'mod2', 'key');
+     * cache.clearAll(); // cache is now empty
+     * ```
      */
     public clearAll(): void {
       this._cache = {};
@@ -305,14 +355,37 @@ export class NcachedService {
 
     /**
      * Caches the result of an Observable source using the given keys.
-     * Returns the cached value immediately on cache hit.
-     * On cache miss, subscribes to source, caches the result, and emits it.
-     * Concurrent calls with the same keys share a single subscription (deduplication).
      *
-     * @param source - The Observable to cache (typically an HTTP call)
-     * @param options - Configuration: ttl, defaultValue
-     * @param keys - Cache keys (same rules as get/set)
-     * @returns Observable that emits the cached or fetched value
+     * On cache hit, returns the cached value immediately via `of()` without
+     * subscribing to the source. On cache miss, subscribes to the source,
+     * stores the result (with optional TTL), and emits it. If the source errors,
+     * emits `defaultValue` when provided, otherwise re-throws.
+     *
+     * Concurrent calls with the same keys share a single source subscription
+     * (request deduplication via shareReplay). The in-flight entry is cleaned
+     * up automatically when the source completes or errors.
+     *
+     * @param source - The Observable to cache (typically an HttpClient call)
+     * @param options - Configuration object with optional `ttl` and `defaultValue`
+     * @param keys - Cache keys (same rules as get/set, min 2 string keys)
+     * @returns An Observable that emits the cached or freshly fetched value
+     *
+     * @example
+     * ```typescript
+     * // Cache an HTTP GET for 30 seconds
+     * this._cache.cacheObservable(
+     *   this._http.get<IUser[]>('/api/users'),
+     *   { ttl: 30000 },
+     *   'api', 'users'
+     * ).subscribe(users => console.log(users));
+     *
+     * // With a fallback value on error
+     * this._cache.cacheObservable(
+     *   this._http.get<IConfig>('/api/config'),
+     *   { ttl: 60000, defaultValue: DEFAULT_CONFIG },
+     *   'api', 'config'
+     * );
+     * ```
      */
     public cacheObservable<T = any>(source: Observable<T>, options: ICacheObservableOptions<T>, ...keys: string[]): Observable<T> {
       try {
@@ -350,10 +423,24 @@ export class NcachedService {
     }
 
     /**
-     * Search for the value in the Map found at the given key(s). The last key is the key used for getting the value from the Map instance
+     * Retrieves a cached value by navigating the hierarchy with the given keys.
+     * The last key is used as the Map lookup key; all preceding keys navigate the hierarchy.
      *
-     * @param {string[]} keys An array of strings to be used for searching the Map instance and getting the value at the given (last) key
-     * @returns {T = any} The value in the cache object
+     * @param keys - Navigation keys (min 2). All but the last navigate; the last is the Map entry key.
+     * @returns The cached value of type T
+     * @throws {CacheServiceErrors.InsufficientsKeysProvidedError} If fewer than two keys are provided
+     * @throws {CacheServiceErrors.KeyNotFound} If a navigation key does not exist
+     * @throws {CacheServiceErrors.ValueNotFound} If the entry is missing or has expired
+     *
+     * @example
+     * ```typescript
+     * cache.set('Alice', 'users', 'currentUser');
+     * const name = cache.get<string>('users', 'currentUser'); // 'Alice'
+     *
+     * // Deep nesting
+     * cache.set(42, 'app', 'settings', 'maxRetries');
+     * cache.get<number>('app', 'settings', 'maxRetries'); // 42
+     * ```
      */
     public get<T = any>(...keys: string[]): T {
       return this._findInCache<T>(...keys) as T;
@@ -361,11 +448,19 @@ export class NcachedService {
   
     /**
      * Retrieves a cached value, returning a default if the key is missing or expired.
-     * Unlike get(), this method never throws for missing/expired entries.
+     * Unlike get(), this method never throws for missing or expired entries.
      *
-     * @param defaultValue - Value to return if the cache entry is missing or expired
+     * @param defaultValue - Value to return when the cache entry is missing or expired
      * @param keys - Navigation keys (same rules as get())
      * @returns The cached value if found and not expired, otherwise defaultValue
+     *
+     * @example
+     * ```typescript
+     * const theme = cache.getOrDefault('light', 'ui', 'theme'); // 'light' if not cached
+     *
+     * cache.set('dark', 'ui', 'theme');
+     * cache.getOrDefault('light', 'ui', 'theme'); // 'dark' (cached value wins)
+     * ```
      */
     public getOrDefault<T = any>(defaultValue: T, ...keys: string[]): T {
       try {
@@ -381,6 +476,17 @@ export class NcachedService {
      * No-op if the path or key does not exist.
      *
      * @param keys - Navigation keys (min 2)
+     * @returns void
+     *
+     * @example
+     * ```typescript
+     * cache.set('val1', 'mod', 'key1');
+     * cache.set('val2', 'mod', 'key2');
+     * cache.remove('mod', 'key1'); // only key1 is removed
+     * cache.get('mod', 'key2');    // 'val2' still available
+     *
+     * cache.remove('nonexistent', 'key'); // no-op, does not throw
+     * ```
      */
     public remove(...keys: string[]): void {
       if (keys.length < 2) {
@@ -398,9 +504,24 @@ export class NcachedService {
     /**
      * Stores a value in the cache at the location determined by the given keys.
      * An optional ISetOptions object can be passed as the last argument to configure TTL.
+     * The value is internally wrapped in an ICacheEntry with expiration metadata.
      *
      * @param value - The value to cache
      * @param args - String keys (min 2) optionally followed by an ISetOptions object
+     * @returns void
+     * @throws {CacheServiceErrors.InsufficientsKeysProvidedError} If fewer than 2 string keys are provided
+     *
+     * @example
+     * ```typescript
+     * // Basic set (no expiration)
+     * cache.set('Alice', 'users', 'currentUser');
+     *
+     * // With TTL (expires in 5 seconds)
+     * cache.set(tokenData, 'auth', 'token', { ttl: 5000 });
+     *
+     * // Deep nesting
+     * cache.set(42, 'app', 'settings', 'maxRetries');
+     * ```
      */
     public set<T = any>(value: T, ...args: Array<string | ISetOptions>): void {
       const { keys, options } = this._parseSetArgs(args);
