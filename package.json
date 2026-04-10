@@ -1,6 +1,6 @@
 {
   "name": "ncached",
-  "version": "0.0.1",
+  "version": "0.1.4",
   "peerDependencies": {
     "@angular/common": "^19.0.0",
     "@angular/core": "^19.0.0"
