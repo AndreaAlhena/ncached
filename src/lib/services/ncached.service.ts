@@ -287,9 +287,20 @@ export class NcachedService {
 
     /**
      * Wipes the entire in-memory cache.
+     * If persistence is enabled, also removes the localStorage entry.
      */
     public clearAll(): void {
       this._cache = {};
+
+      if (this._config?.persistence?.enabled) {
+        const storageKey = this._config.persistence.storageKey ?? 'ncached_snapshot';
+
+        try {
+          localStorage.removeItem(storageKey);
+        } catch {
+          // Ignore — clearing storage is best-effort
+        }
+      }
     }
 
     /**

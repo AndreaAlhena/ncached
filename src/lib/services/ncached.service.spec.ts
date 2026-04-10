@@ -425,4 +425,12 @@ describe('NcachedService (persistence)', () => {
 
     delete (window as any).__beforeUnloadHandler;
   });
+
+  it('[clearAll method] should also remove the localStorage entry when persistence is enabled', () => {
+    localStorage.setItem(STORAGE_KEY, 'some-data');
+    const svc = createServiceWithPersistence();
+    svc.set('data', 'mod', 'key');
+    svc.clearAll();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
 });
