@@ -67,4 +67,25 @@ describe('NcachedService', () => {
   it('[get method] should throw an error if the lookup key is not found into the Map', () => {
     expect(() => service.get('key1', 'key2')).toThrow(new CacheServiceErrors.KeyNotFound('key1'));
   });
+
+  it('[set method] should accept an ISetOptions object as the last argument', () => {
+    service.set('value', 'mod', 'key', { ttl: 60000 });
+    expect(service.get('mod', 'key')).toEqual('value');
+  });
+
+  it('[set method] should store an ICacheEntry with expiresAt when ttl is provided', () => {
+    const before = Date.now();
+    service.set('value', 'mod', 'key', { ttl: 5000 });
+    const entry = ((service as any)._cache['mod'] as Map<string, any>).get('key');
+    expect(entry.value).toEqual('value');
+    expect(entry.expiresAt).toBeGreaterThanOrEqual(before + 5000);
+    expect(entry.expiresAt).toBeLessThanOrEqual(Date.now() + 5000);
+  });
+
+  it('[set method] should store an ICacheEntry with null expiresAt when no ttl', () => {
+    service.set('value', 'mod', 'key');
+    const entry = ((service as any)._cache['mod'] as Map<string, any>).get('key');
+    expect(entry.value).toEqual('value');
+    expect(entry.expiresAt).toBeNull();
+  });
 });

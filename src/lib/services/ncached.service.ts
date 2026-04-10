@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
+import { ICacheEntry } from '../interfaces/cache-entry.interface';
 import { ICacheObject } from '../interfaces/cache-object.interface';
+import { ISetOptions } from '../interfaces/set-options.interface';
 import { CacheServiceErrors } from '../namespaces/cache-service-errors.namespace';
 
 @Injectable({
@@ -69,28 +71,49 @@ export class NcachedService {
     }
   
     /**
-     * Recursively search for the Map object accordingly to the given keys and set the value at the given (last) key in the Map
-     * If no Map has been found at the right spot, it is created and the value is set accordingly
+     * Parses the variadic arguments of set() to separate keys from options.
+     * If the last argument is an object, it is treated as ISetOptions.
      *
-     * @param {ICacheObject} cacheObj The cache object. At the beginning, provide the _cache instance of this class
-     * @param {T = any} value Value to be set in the Map at the given key
-     * @param {string[]} keys An array of strings to be used for searching the Map instance and setting the Map value at the given (last) key
-     * @returns {ICacheObject | undefined} ICacheObject if is recursively looking for the right spot. undefined if the value has been set in the Map
+     * @param args - The mixed array of string keys and optional ISetOptions
+     * @returns Parsed keys and options
      */
-    private _setInCache<T = any>(cacheObj: ICacheObject, value: T, ...keys: string[]): ICacheObject | undefined {
+    private _parseSetArgs(args: Array<string | ISetOptions>): { keys: string[]; options: ISetOptions | undefined } {
+      const lastArg = args[args.length - 1];
+
+      return typeof lastArg === 'object' && lastArg !== null
+        ? { keys: args.slice(0, -1) as string[], options: lastArg as ISetOptions }
+        : { keys: args as string[], options: undefined };
+    }
+
+    /**
+     * Recursively navigates the cache hierarchy and stores the value wrapped in ICacheEntry.
+     * Auto-creates intermediate ICacheObject nodes and leaf Maps as needed.
+     *
+     * @param cacheObj - Current level of the cache hierarchy
+     * @param value - Value to store
+     * @param options - Optional set options (TTL)
+     * @param keys - Remaining navigation keys
+     * @returns ICacheObject if recursing, undefined when value is set
+     */
+    private _setInCache<T = any>(cacheObj: ICacheObject, value: T, options: ISetOptions | undefined, ...keys: string[]): ICacheObject | undefined {
       if (keys.length > 2) {
         if (!cacheObj[keys[0]]) {
           cacheObj[keys[0]] = {};
         }
 
-        return this._setInCache(cacheObj[keys[0]] as ICacheObject, value, ...keys.slice(1));
+        return this._setInCache(cacheObj[keys[0]] as ICacheObject, value, options, ...keys.slice(1));
       }
 
       if (!(cacheObj[keys[0]] instanceof Map)) {
         cacheObj[keys[0]] = new Map();
       }
 
-      (cacheObj[keys[0]] as Map<string, T>).set(keys[1], value);
+      const entry: ICacheEntry<T> = {
+        value,
+        expiresAt: options?.ttl ? Date.now() + options.ttl : null
+      };
+
+      (cacheObj[keys[0]] as Map<string, ICacheEntry<T>>).set(keys[1], entry);
 
       return;
     }
@@ -106,11 +129,14 @@ export class NcachedService {
     }
   
     /**
-     * @param {T = any} value The value to be set in the cache
-     * @param {string[]} keys An array of strings to be used for searching the Map instance and setting the value at the given (last) key
-     * @returns {void}
+     * Stores a value in the cache at the location determined by the given keys.
+     * An optional ISetOptions object can be passed as the last argument to configure TTL.
+     *
+     * @param value - The value to cache
+     * @param args - String keys (min 2) optionally followed by an ISetOptions object
      */
-    public set<T = any>(value: T, ...keys: string[]): void {
-      this._setInCache(this._cache, value, ...keys);
+    public set<T = any>(value: T, ...args: Array<string | ISetOptions>): void {
+      const { keys, options } = this._parseSetArgs(args);
+      this._setInCache(this._cache, value, options, ...keys);
     }
 }
