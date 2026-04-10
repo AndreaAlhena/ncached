@@ -88,4 +88,31 @@ describe('NcachedService', () => {
     expect(entry.value).toEqual('value');
     expect(entry.expiresAt).toBeNull();
   });
+
+  it('[get method] should return the unwrapped value from ICacheEntry', () => {
+    service.set('hello', 'mod', 'key');
+    expect(service.get('mod', 'key')).toEqual('hello');
+  });
+
+  it('[get method] should throw ValueNotFound when entry is expired', () => {
+    service.set('value', 'mod', 'key', { ttl: 1 });
+    const map = (service as any)._cache['mod'] as Map<string, any>;
+    const entry = map.get('key');
+    entry.expiresAt = Date.now() - 1000;
+    expect(() => service.get('mod', 'key')).toThrowError(CacheServiceErrors.ValueNotFound);
+  });
+
+  it('[get method] should remove expired entries from the map on access', () => {
+    service.set('value', 'mod', 'key', { ttl: 1 });
+    const map = (service as any)._cache['mod'] as Map<string, any>;
+    const entry = map.get('key');
+    entry.expiresAt = Date.now() - 1000;
+    try { service.get('mod', 'key'); } catch {}
+    expect(map.has('key')).toBeFalse();
+  });
+
+  it('[get method] should return value when entry has not expired', () => {
+    service.set('value', 'mod', 'key', { ttl: 60000 });
+    expect(service.get('mod', 'key')).toEqual('value');
+  });
 });

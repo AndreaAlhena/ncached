@@ -20,27 +20,34 @@ export class NcachedService {
     constructor() {}
   
     /**
-     * Recursively search for a value in the cache accordingly to the given keys
+     * Recursively search for a value in the cache accordingly to the given keys.
+     * Unwraps the ICacheEntry and checks TTL expiration.
      *
-     * @param {string[]} keys An array of strings to be used for searching the Map instance
-     * @returns {T} If a Map is found, the element of type T is taken from it and returned
-     * @throws {CacheServiceErrors.InsufficientsKeysProvidedError} If less than two keys are provided, this error is thrown
-     * @throws {CacheServiceErrors.ValueNotFound} If the lookup key is not found into the Map, this error is thrown
+     * @param keys - Navigation keys (min 2). All but the last navigate the hierarchy; the last is the Map key.
+     * @returns The cached value of type T
+     * @throws {CacheServiceErrors.InsufficientsKeysProvidedError} If less than two keys are provided
+     * @throws {CacheServiceErrors.ValueNotFound} If the key is missing or the entry has expired
      */
     private _findInCache<T = any>(...keys: string[]): T {
-      // At least two keys (module name / map key) should be provided
       if (keys.length < 2) {
         throw new CacheServiceErrors.InsufficientsKeysProvidedError();
       }
-  
-      const map = this._findMap(this._cache, ...keys.slice(0, keys.length - 1));
-      const mapKey = keys[keys.length - 1]; // Last key is the map key
-  
+
+      const map = this._findMap<ICacheEntry<T>>(this._cache, ...keys.slice(0, keys.length - 1));
+      const mapKey = keys[keys.length - 1];
+
       if (!map.has(mapKey)) {
         throw new CacheServiceErrors.ValueNotFound(mapKey);
       }
-  
-      return map.get(mapKey);
+
+      const entry = map.get(mapKey)!;
+
+      if (entry.expiresAt !== null && Date.now() > entry.expiresAt) {
+        map.delete(mapKey);
+        throw new CacheServiceErrors.ValueNotFound(mapKey);
+      }
+
+      return entry.value;
     }
   
     /**
