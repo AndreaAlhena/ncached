@@ -126,6 +126,37 @@ export class NcachedService {
     }
   
     /**
+     * Clears an entire subtree or map layer from the cache.
+     * Navigates to the parent using all keys except the last, then deletes the last key's entry.
+     * No-op if the path does not exist.
+     *
+     * @param keys - Keys identifying the subtree to clear (min 1)
+     */
+    public clear(...keys: string[]): void {
+      if (keys.length === 0) {
+        return;
+      }
+
+      let target: ICacheObject = this._cache;
+
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!(keys[i] in target)) {
+          return;
+        }
+        target = target[keys[i]] as ICacheObject;
+      }
+
+      delete target[keys[keys.length - 1]];
+    }
+
+    /**
+     * Wipes the entire in-memory cache.
+     */
+    public clearAll(): void {
+      this._cache = {};
+    }
+
+    /**
      * Search for the value in the Map found at the given key(s). The last key is the key used for getting the value from the Map instance
      *
      * @param {string[]} keys An array of strings to be used for searching the Map instance and getting the value at the given (last) key
@@ -148,6 +179,26 @@ export class NcachedService {
         return this.get<T>(...keys);
       } catch {
         return defaultValue;
+      }
+    }
+
+    /**
+     * Removes a specific cache entry identified by the given keys.
+     * The last key is the Map entry key; preceding keys navigate the hierarchy.
+     * No-op if the path or key does not exist.
+     *
+     * @param keys - Navigation keys (min 2)
+     */
+    public remove(...keys: string[]): void {
+      if (keys.length < 2) {
+        return;
+      }
+
+      try {
+        const map = this._findMap(this._cache, ...keys.slice(0, keys.length - 1));
+        map.delete(keys[keys.length - 1]);
+      } catch {
+        // Path doesn't exist — nothing to remove
       }
     }
 

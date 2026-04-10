@@ -146,4 +146,43 @@ describe('NcachedService', () => {
     map.get('key').expiresAt = Date.now() - 1000;
     expect(service.getOrDefault('fallback', 'mod', 'key')).toEqual('fallback');
   });
+
+  describe('invalidation', () => {
+    it('[remove method] should remove a specific cache entry', () => {
+      service.set('val', 'mod', 'key1');
+      service.set('val2', 'mod', 'key2');
+      service.remove('mod', 'key1');
+      expect(() => service.get('mod', 'key1')).toThrowError(CacheServiceErrors.ValueNotFound);
+      expect(service.get('mod', 'key2')).toEqual('val2');
+    });
+
+    it('[remove method] should be a no-op when the path does not exist', () => {
+      expect(() => service.remove('nonexistent', 'key')).not.toThrow();
+    });
+
+    it('[clear method] should clear an entire map layer', () => {
+      service.set('a', 'mod', 'key1');
+      service.set('b', 'mod', 'key2');
+      service.clear('mod');
+      expect(() => service.get('mod', 'key1')).toThrowError(CacheServiceErrors.KeyNotFound);
+    });
+
+    it('[clear method] should clear a nested subtree', () => {
+      service.set('a', 'root', 'child', 'key1');
+      service.clear('root');
+      expect(() => service.get('root', 'child', 'key1')).toThrowError(CacheServiceErrors.KeyNotFound);
+    });
+
+    it('[clear method] should be a no-op when the path does not exist', () => {
+      expect(() => service.clear('nonexistent')).not.toThrow();
+    });
+
+    it('[clearAll method] should wipe the entire cache', () => {
+      service.set('a', 'mod1', 'key');
+      service.set('b', 'mod2', 'key');
+      service.clearAll();
+      expect(() => service.get('mod1', 'key')).toThrowError(CacheServiceErrors.KeyNotFound);
+      expect(() => service.get('mod2', 'key')).toThrowError(CacheServiceErrors.KeyNotFound);
+    });
+  });
 });
