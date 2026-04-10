@@ -65,7 +65,7 @@ export class NcachedService {
         throw new CacheServiceErrors.MapNotFound(keys[0]);
       }
   
-      return this._findMap(obj as ICacheObject, ...keys.slice(1, keys.length - 1));
+      return this._findMap(obj as ICacheObject, ...keys.slice(1));
     }
   
     /**
@@ -79,15 +79,19 @@ export class NcachedService {
      */
     private _setInCache<T = any>(cacheObj: ICacheObject, value: T, ...keys: string[]): ICacheObject | undefined {
       if (keys.length > 2) {
-        return this._setInCache(cacheObj[keys[0]] as ICacheObject, value, ...keys.slice(1, keys.length - 1));
+        if (!cacheObj[keys[0]]) {
+          cacheObj[keys[0]] = {};
+        }
+
+        return this._setInCache(cacheObj[keys[0]] as ICacheObject, value, ...keys.slice(1));
       }
-  
-      if (!(this._cache[keys[0]] instanceof Map)) {
-        this._cache[keys[0]] = new Map();
+
+      if (!(cacheObj[keys[0]] instanceof Map)) {
+        cacheObj[keys[0]] = new Map();
       }
-  
-      (this._cache[keys[0]] as Map<string, T>).set(keys[1], value);
-  
+
+      (cacheObj[keys[0]] as Map<string, T>).set(keys[1], value);
+
       return;
     }
   
