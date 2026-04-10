@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { of, throwError, Subject, Observable } from 'rxjs';
 
 import { NcachedService } from './ncached.service';
 import { CacheServiceErrors } from '../namespaces/cache-service-errors.namespace';
@@ -183,6 +184,104 @@ describe('NcachedService', () => {
       service.clearAll();
       expect(() => service.get('mod1', 'key')).toThrowError(CacheServiceErrors.KeyNotFound);
       expect(() => service.get('mod2', 'key')).toThrowError(CacheServiceErrors.KeyNotFound);
+    });
+  });
+
+  describe('cacheObservable', () => {
+    it('should return cached value immediately on cache hit', (done) => {
+      service.set('cached', 'mod', 'key');
+      const source$ = of('fresh');
+      service.cacheObservable(source$, {}, 'mod', 'key').subscribe(value => {
+        expect(value).toEqual('cached');
+        done();
+      });
+    });
+
+    it('should subscribe to source on cache miss and store result', (done) => {
+      const source$ = of('fetched');
+      service.cacheObservable(source$, {}, 'mod', 'key').subscribe(value => {
+        expect(value).toEqual('fetched');
+        expect(service.get('mod', 'key')).toEqual('fetched');
+        done();
+      });
+    });
+
+    it('should store result with TTL when ttl option is provided', (done) => {
+      const source$ = of('fetched');
+      service.cacheObservable(source$, { ttl: 5000 }, 'mod', 'key').subscribe(() => {
+        const map = (service as any)._cache['mod'] as Map<string, any>;
+        const entry = map.get('key');
+        expect(entry.expiresAt).not.toBeNull();
+        done();
+      });
+    });
+
+    it('should emit defaultValue when source errors and defaultValue is provided', (done) => {
+      const source$ = throwError(() => new Error('network'));
+      service.cacheObservable(source$, { defaultValue: 'fallback' }, 'mod', 'key').subscribe(value => {
+        expect(value).toEqual('fallback');
+        done();
+      });
+    });
+
+    it('should rethrow error when source errors and no defaultValue', (done) => {
+      const source$ = throwError(() => new Error('network'));
+      service.cacheObservable(source$, {}, 'mod', 'key').subscribe({
+        error: (err) => {
+          expect(err.message).toEqual('network');
+          done();
+        }
+      });
+    });
+
+    it('should not subscribe to source when cached value exists and is not expired', () => {
+      service.set('cached', 'mod', 'key');
+      let subscribed = false;
+      const source$ = new Observable<string>(subscriber => {
+        subscribed = true;
+        subscriber.next('fresh');
+        subscriber.complete();
+      });
+      service.cacheObservable(source$, {}, 'mod', 'key').subscribe();
+      expect(subscribed).toBeFalse();
+    });
+
+    it('should deduplicate concurrent calls with the same keys', () => {
+      let subscribeCount = 0;
+      const source$ = new Observable<string>(subscriber => {
+        subscribeCount++;
+        subscriber.next('result');
+        subscriber.complete();
+      });
+
+      service.cacheObservable(source$, {}, 'mod', 'key').subscribe();
+      service.cacheObservable(source$, {}, 'mod', 'key').subscribe();
+      service.cacheObservable(source$, {}, 'mod', 'key').subscribe();
+
+      expect(subscribeCount).toBe(1);
+    });
+
+    it('should not deduplicate calls with different keys', () => {
+      let subscribeCount = 0;
+      const source$ = new Observable<string>(subscriber => {
+        subscribeCount++;
+        subscriber.next('result');
+        subscriber.complete();
+      });
+
+      service.cacheObservable(source$, {}, 'mod', 'key1').subscribe();
+      service.cacheObservable(source$, {}, 'mod', 'key2').subscribe();
+
+      expect(subscribeCount).toBe(2);
+    });
+
+    it('should clean up inflight entry after source completes', () => {
+      const subject = new Subject<string>();
+      service.cacheObservable(subject.asObservable(), {}, 'mod', 'key').subscribe();
+      expect((service as any)._inflight.size).toBe(1);
+      subject.next('done');
+      subject.complete();
+      expect((service as any)._inflight.size).toBe(0);
     });
   });
 });

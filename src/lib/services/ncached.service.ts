@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, finalize, shareReplay, tap } from 'rxjs/operators';
 import { ICacheEntry } from '../interfaces/cache-entry.interface';
 import { ICacheObject } from '../interfaces/cache-object.interface';
+import { ICacheObservableOptions } from '../interfaces/cache-observable-options.interface';
 import { ISetOptions } from '../interfaces/set-options.interface';
 import { CacheServiceErrors } from '../namespaces/cache-service-errors.namespace';
 
@@ -16,6 +19,12 @@ export class NcachedService {
    * @type {ICacheObject}
    */
     private _cache: ICacheObject = {};
+
+    /**
+     * Map of in-flight observables keyed by serialized cache keys.
+     * Used for request deduplication.
+     */
+    private _inflight: Map<string, Observable<any>> = new Map();
 
     constructor() {}
   
@@ -154,6 +163,52 @@ export class NcachedService {
      */
     public clearAll(): void {
       this._cache = {};
+    }
+
+    /**
+     * Caches the result of an Observable source using the given keys.
+     * Returns the cached value immediately on cache hit.
+     * On cache miss, subscribes to source, caches the result, and emits it.
+     * Concurrent calls with the same keys share a single subscription (deduplication).
+     *
+     * @param source - The Observable to cache (typically an HTTP call)
+     * @param options - Configuration: ttl, defaultValue
+     * @param keys - Cache keys (same rules as get/set)
+     * @returns Observable that emits the cached or fetched value
+     */
+    public cacheObservable<T = any>(source: Observable<T>, options: ICacheObservableOptions<T>, ...keys: string[]): Observable<T> {
+      try {
+        const cached = this.get<T>(...keys);
+        return of(cached);
+      } catch {
+        // Not in cache or expired — proceed
+      }
+
+      const flightKey = keys.join('::');
+
+      if (this._inflight.has(flightKey)) {
+        return this._inflight.get(flightKey)! as Observable<T>;
+      }
+
+      const shared$ = source.pipe(
+        tap(value => {
+          this._setInCache<T>(this._cache, value, options.ttl != null ? { ttl: options.ttl } : undefined, ...keys);
+        }),
+        catchError(error => {
+          if ('defaultValue' in options) {
+            return of(options.defaultValue as T);
+          }
+          return throwError(() => error);
+        }),
+        finalize(() => {
+          this._inflight.delete(flightKey);
+        }),
+        shareReplay({ bufferSize: 1, refCount: true })
+      );
+
+      this._inflight.set(flightKey, shared$);
+
+      return shared$;
     }
 
     /**
