@@ -46,6 +46,7 @@ export class NcachedService {
 
       if (config?.persistence?.enabled) {
         this._hydrate();
+        this._registerBeforeUnload();
       }
     }
   
@@ -153,6 +154,31 @@ export class NcachedService {
       return typeof lastArg === 'object' && lastArg !== null
         ? { keys: args.slice(0, -1) as string[], options: lastArg as ISetOptions }
         : { keys: args as string[], options: undefined };
+    }
+
+    /**
+     * Persists the in-memory cache to localStorage.
+     * Serializes and compresses the cache. Handles QuotaExceededError gracefully.
+     */
+    private _persist(): void {
+      const storageKey = this._config?.persistence?.storageKey ?? 'ncached_snapshot';
+
+      try {
+        const json = this._serialize();
+        const compressed = this._compressor.compress(json);
+        localStorage.setItem(storageKey, compressed);
+      } catch (error) {
+        console.warn('[ncached] Failed to persist cache to localStorage:', error);
+      }
+    }
+
+    /**
+     * Registers a beforeunload event listener that persists the cache.
+     */
+    private _registerBeforeUnload(): void {
+      window.addEventListener('beforeunload', () => {
+        this._persist();
+      });
     }
 
     /**

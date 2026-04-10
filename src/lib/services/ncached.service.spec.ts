@@ -381,4 +381,48 @@ describe('NcachedService (persistence)', () => {
     const svc = createServiceWithPersistence('not-json{{{');
     expect(() => svc.get('mod', 'key')).toThrowError();
   });
+
+  it('should register a beforeunload listener when persistence is enabled', () => {
+    spyOn(window, 'addEventListener');
+    createServiceWithPersistence();
+    expect(window.addEventListener).toHaveBeenCalledWith('beforeunload', jasmine.any(Function));
+  });
+
+  it('should persist cache to localStorage on beforeunload', () => {
+    spyOn(window, 'addEventListener').and.callFake(((event: string, handler: EventListenerOrEventListenerObject) => {
+      if (event === 'beforeunload') {
+        (window as any).__beforeUnloadHandler = handler;
+      }
+    }) as any);
+
+    const svc = createServiceWithPersistence();
+    svc.set('data', 'mod', 'key');
+
+    (window as any).__beforeUnloadHandler();
+
+    const stored = localStorage.getItem(STORAGE_KEY);
+    expect(stored).toBeTruthy();
+    const parsed = JSON.parse(stored!);
+    expect(parsed.mod.__mapEntries[0][1].value).toEqual('data');
+
+    delete (window as any).__beforeUnloadHandler;
+  });
+
+  it('should handle QuotaExceededError gracefully on persist', () => {
+    spyOn(window, 'addEventListener').and.callFake(((event: string, handler: EventListenerOrEventListenerObject) => {
+      if (event === 'beforeunload') {
+        (window as any).__beforeUnloadHandler = handler;
+      }
+    }) as any);
+    spyOn(localStorage, 'setItem').and.throwError(new DOMException('quota', 'QuotaExceededError'));
+    spyOn(console, 'warn');
+
+    const svc = createServiceWithPersistence();
+    svc.set('data', 'mod', 'key');
+
+    expect(() => (window as any).__beforeUnloadHandler()).not.toThrow();
+    expect(console.warn).toHaveBeenCalled();
+
+    delete (window as any).__beforeUnloadHandler;
+  });
 });
