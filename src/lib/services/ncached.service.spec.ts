@@ -130,4 +130,20 @@ describe('NcachedService', () => {
     service.set('deep', 'root', 'child', 'key', { ttl: 60000 });
     expect(service.get('root', 'child', 'key')).toEqual('deep');
   });
+
+  it('[getOrDefault method] should return cached value when key exists', () => {
+    service.set('cached', 'mod', 'key');
+    expect(service.getOrDefault('fallback', 'mod', 'key')).toEqual('cached');
+  });
+
+  it('[getOrDefault method] should return defaultValue when key is not found', () => {
+    expect(service.getOrDefault('fallback', 'mod', 'key')).toEqual('fallback');
+  });
+
+  it('[getOrDefault method] should return defaultValue when entry is expired', () => {
+    service.set('value', 'mod', 'key', { ttl: 1 });
+    const map = (service as any)._cache['mod'] as Map<string, any>;
+    map.get('key').expiresAt = Date.now() - 1000;
+    expect(service.getOrDefault('fallback', 'mod', 'key')).toEqual('fallback');
+  });
 });

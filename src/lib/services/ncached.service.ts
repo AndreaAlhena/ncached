@@ -136,6 +136,22 @@ export class NcachedService {
     }
   
     /**
+     * Retrieves a cached value, returning a default if the key is missing or expired.
+     * Unlike get(), this method never throws for missing/expired entries.
+     *
+     * @param defaultValue - Value to return if the cache entry is missing or expired
+     * @param keys - Navigation keys (same rules as get())
+     * @returns The cached value if found and not expired, otherwise defaultValue
+     */
+    public getOrDefault<T = any>(defaultValue: T, ...keys: string[]): T {
+      try {
+        return this.get<T>(...keys);
+      } catch {
+        return defaultValue;
+      }
+    }
+
+    /**
      * Stores a value in the cache at the location determined by the given keys.
      * An optional ISetOptions object can be passed as the last argument to configure TTL.
      *
