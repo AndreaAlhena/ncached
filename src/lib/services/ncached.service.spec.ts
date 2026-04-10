@@ -115,4 +115,19 @@ describe('NcachedService', () => {
     service.set('value', 'mod', 'key', { ttl: 60000 });
     expect(service.get('mod', 'key')).toEqual('value');
   });
+
+  it('[set method] should handle ttl: 0 as immediate expiration', () => {
+    service.set('value', 'mod', 'key', { ttl: 0 });
+    const entry = ((service as any)._cache['mod'] as Map<string, any>).get('key');
+    expect(entry.expiresAt).not.toBeNull();
+  });
+
+  it('[set method] should throw InsufficientsKeysProvidedError when fewer than 2 keys after option parsing', () => {
+    expect(() => service.set('value', 'onlyOne', { ttl: 5000 })).toThrow(new CacheServiceErrors.InsufficientsKeysProvidedError());
+  });
+
+  it('[set method] should work with 3+ keys and TTL option', () => {
+    service.set('deep', 'root', 'child', 'key', { ttl: 60000 });
+    expect(service.get('root', 'child', 'key')).toEqual('deep');
+  });
 });

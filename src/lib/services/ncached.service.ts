@@ -117,7 +117,7 @@ export class NcachedService {
 
       const entry: ICacheEntry<T> = {
         value,
-        expiresAt: options?.ttl ? Date.now() + options.ttl : null
+        expiresAt: options?.ttl != null ? Date.now() + options.ttl : null
       };
 
       (cacheObj[keys[0]] as Map<string, ICacheEntry<T>>).set(keys[1], entry);
@@ -144,6 +144,11 @@ export class NcachedService {
      */
     public set<T = any>(value: T, ...args: Array<string | ISetOptions>): void {
       const { keys, options } = this._parseSetArgs(args);
+
+      if (keys.length < 2) {
+        throw new CacheServiceErrors.InsufficientsKeysProvidedError();
+      }
+
       this._setInCache(this._cache, value, options, ...keys);
     }
 }
