@@ -42,6 +42,24 @@ describe('NcachedService', () => {
     expect(service.get('root', 'parent', 'child')).toEqual('value');
   });
 
+  it('[get / set method] should set a value and return a key from an existing map (4 keys)', () => {
+    service.set('deep', 'a', 'b', 'c', 'd');
+    expect(service.get('a', 'b', 'c', 'd')).toEqual('deep');
+  });
+
+  it('[get / set method] should keep independent namespaces isolated at 3+ key depth', () => {
+    service.set('val1', 'ns1', 'group', 'key');
+    service.set('val2', 'ns2', 'group', 'key');
+    expect(service.get('ns1', 'group', 'key')).toEqual('val1');
+    expect(service.get('ns2', 'group', 'key')).toEqual('val2');
+  });
+
+  it('[set method] should overwrite an existing value at 3+ key depth', () => {
+    service.set('old', 'mod', 'sub', 'prop');
+    service.set('new', 'mod', 'sub', 'prop');
+    expect(service.get('mod', 'sub', 'prop')).toEqual('new');
+  });
+
   it('[get method] should throw an error if less than two keys are provided', () => {
     expect(() => service.get('key')).toThrow(new CacheServiceErrors.InsufficientsKeysProvidedError());
   });
