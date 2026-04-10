@@ -1,11 +1,15 @@
-import { Injectable } from '@angular/core';
+import { Inject, Injectable, Optional } from '@angular/core';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, finalize, shareReplay, tap } from 'rxjs/operators';
+import { NoopCompressor } from '../compressors/noop.compressor';
 import { ICacheEntry } from '../interfaces/cache-entry.interface';
 import { ICacheObject } from '../interfaces/cache-object.interface';
 import { ICacheObservableOptions } from '../interfaces/cache-observable-options.interface';
+import { ICompressor } from '../interfaces/compressor.interface';
+import { INcachedConfig } from '../interfaces/ncached-config.interface';
 import { ISetOptions } from '../interfaces/set-options.interface';
 import { CacheServiceErrors } from '../namespaces/cache-service-errors.namespace';
+import { NCACHED_CONFIG } from '../tokens/ncached-config.token';
 
 @Injectable({
   providedIn: 'root'
@@ -21,12 +25,29 @@ export class NcachedService {
     private _cache: ICacheObject = {};
 
     /**
+     * The resolved compressor instance for the persistence layer.
+     */
+    private _compressor: ICompressor;
+
+    /**
+     * Library configuration, provided via NCACHED_CONFIG injection token.
+     */
+    private _config: INcachedConfig | null;
+
+    /**
      * Map of in-flight observables keyed by serialized cache keys.
      * Used for request deduplication.
      */
     private _inflight: Map<string, Observable<any>> = new Map();
 
-    constructor() {}
+    constructor(@Optional() @Inject(NCACHED_CONFIG) config: INcachedConfig | null) {
+      this._config = config ?? null;
+      this._compressor = config?.persistence?.compressor ?? new NoopCompressor();
+
+      if (config?.persistence?.enabled) {
+        this._hydrate();
+      }
+    }
   
     /**
      * Deserializes a JSON string into an ICacheObject, reconstructing Maps.
@@ -97,7 +118,28 @@ export class NcachedService {
   
       return this._findMap(obj as ICacheObject, ...keys.slice(1));
     }
-  
+
+    /**
+     * Hydrates the in-memory cache from localStorage.
+     * Discards expired entries. Starts with empty cache on any failure.
+     */
+    private _hydrate(): void {
+      const storageKey = this._config?.persistence?.storageKey ?? 'ncached_snapshot';
+
+      try {
+        const raw = localStorage.getItem(storageKey);
+
+        if (!raw) {
+          return;
+        }
+
+        const json = this._compressor.decompress(raw);
+        this._cache = this._deserialize(json);
+      } catch {
+        this._cache = {};
+      }
+    }
+
     /**
      * Parses the variadic arguments of set() to separate keys from options.
      * If the last argument is an object, it is treated as ISetOptions.

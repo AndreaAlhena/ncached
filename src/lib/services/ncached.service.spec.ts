@@ -3,6 +3,9 @@ import { of, throwError, Subject, Observable } from 'rxjs';
 
 import { NcachedService } from './ncached.service';
 import { CacheServiceErrors } from '../namespaces/cache-service-errors.namespace';
+import { NCACHED_CONFIG } from '../tokens/ncached-config.token';
+import { INcachedConfig } from '../interfaces/ncached-config.interface';
+import { NoopCompressor } from '../compressors/noop.compressor';
 
 describe('NcachedService', () => {
   let service: NcachedService;
@@ -319,5 +322,63 @@ describe('NcachedService', () => {
       const restored = (service as any)._deserialize(json);
       expect(restored['mod'].has('key')).toBeFalse();
     });
+  });
+});
+
+describe('NcachedService (persistence)', () => {
+  const STORAGE_KEY = 'ncached_test';
+
+  afterEach(() => {
+    localStorage.removeItem(STORAGE_KEY);
+  });
+
+  function createServiceWithPersistence(storageContent?: string): NcachedService {
+    if (storageContent) {
+      localStorage.setItem(STORAGE_KEY, storageContent);
+    }
+
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: NCACHED_CONFIG,
+          useValue: {
+            persistence: {
+              enabled: true,
+              storageKey: STORAGE_KEY,
+              compressor: new NoopCompressor()
+            }
+          } as INcachedConfig
+        }
+      ]
+    });
+
+    return TestBed.inject(NcachedService);
+  }
+
+  it('should hydrate cache from localStorage on construction', () => {
+    const data = JSON.stringify({
+      mod: { __mapEntries: [['key', { value: 'hydrated', expiresAt: null }]] }
+    });
+    const svc = createServiceWithPersistence(data);
+    expect(svc.get('mod', 'key')).toEqual('hydrated');
+  });
+
+  it('should discard expired entries during hydration', () => {
+    const data = JSON.stringify({
+      mod: { __mapEntries: [['key', { value: 'old', expiresAt: Date.now() - 1000 }]] }
+    });
+    const svc = createServiceWithPersistence(data);
+    expect(() => svc.get('mod', 'key')).toThrowError();
+  });
+
+  it('should start with empty cache if localStorage is empty', () => {
+    const svc = createServiceWithPersistence();
+    expect(() => svc.get('mod', 'key')).toThrowError();
+  });
+
+  it('should start with empty cache if localStorage contains invalid JSON', () => {
+    const svc = createServiceWithPersistence('not-json{{{');
+    expect(() => svc.get('mod', 'key')).toThrowError();
   });
 });
