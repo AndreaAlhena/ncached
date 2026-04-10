@@ -284,4 +284,40 @@ describe('NcachedService', () => {
       expect((service as any)._inflight.size).toBe(0);
     });
   });
+
+  describe('serialization', () => {
+    it('[_serialize method] should convert cache Maps to JSON-safe format', () => {
+      service.set('value', 'mod', 'key');
+      const json = (service as any)._serialize();
+      const parsed = JSON.parse(json);
+      expect(parsed.mod.__mapEntries).toBeDefined();
+      expect(parsed.mod.__mapEntries[0][0]).toEqual('key');
+      expect(parsed.mod.__mapEntries[0][1].value).toEqual('value');
+    });
+
+    it('[_deserialize method] should reconstruct Maps from JSON', () => {
+      service.set('value', 'mod', 'key');
+      const json = (service as any)._serialize();
+      const restored = (service as any)._deserialize(json);
+      expect(restored['mod'] instanceof Map).toBeTrue();
+      expect(restored['mod'].get('key').value).toEqual('value');
+    });
+
+    it('[_deserialize/_serialize] should round-trip nested caches', () => {
+      service.set('deep', 'root', 'child', 'key');
+      const json = (service as any)._serialize();
+      const restored = (service as any)._deserialize(json);
+      expect(restored['root']['child'] instanceof Map).toBeTrue();
+      expect(restored['root']['child'].get('key').value).toEqual('deep');
+    });
+
+    it('[_deserialize method] should discard expired entries during deserialization', () => {
+      service.set('expired', 'mod', 'key', { ttl: 1 });
+      const map = (service as any)._cache['mod'] as Map<string, any>;
+      map.get('key').expiresAt = Date.now() - 1000;
+      const json = (service as any)._serialize();
+      const restored = (service as any)._deserialize(json);
+      expect(restored['mod'].has('key')).toBeFalse();
+    });
+  });
 });

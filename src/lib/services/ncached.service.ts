@@ -29,6 +29,18 @@ export class NcachedService {
     constructor() {}
   
     /**
+     * Deserializes a JSON string into an ICacheObject, reconstructing Maps.
+     * Discards expired entries during reconstruction.
+     *
+     * @param json - JSON string from _serialize()
+     * @returns Reconstructed ICacheObject
+     */
+    private _deserialize(json: string): ICacheObject {
+      const parsed = JSON.parse(json);
+      return this._restoreMaps(parsed);
+    }
+
+    /**
      * Recursively search for a value in the cache accordingly to the given keys.
      * Unwraps the ICacheEntry and checks TTL expiration.
      *
@@ -99,6 +111,53 @@ export class NcachedService {
       return typeof lastArg === 'object' && lastArg !== null
         ? { keys: args.slice(0, -1) as string[], options: lastArg as ISetOptions }
         : { keys: args as string[], options: undefined };
+    }
+
+    /**
+     * Recursively restores Maps from the serialized format.
+     * Filters out expired entries based on their expiresAt timestamp.
+     *
+     * @param obj - Parsed JSON object
+     * @returns ICacheObject with Maps restored
+     */
+    private _restoreMaps(obj: Record<string, any>): ICacheObject {
+      const result: ICacheObject = {};
+      const now = Date.now();
+
+      for (const key of Object.keys(obj)) {
+        const node = obj[key];
+
+        if (node && Array.isArray(node.__mapEntries)) {
+          const map = new Map<string, ICacheEntry<any>>();
+
+          for (const [entryKey, entry] of node.__mapEntries) {
+            if (entry.expiresAt === null || entry.expiresAt > now) {
+              map.set(entryKey, entry);
+            }
+          }
+
+          result[key] = map;
+        } else if (node && typeof node === 'object') {
+          result[key] = this._restoreMaps(node);
+        }
+      }
+
+      return result;
+    }
+
+    /**
+     * Serializes the in-memory cache to a JSON string.
+     * Converts Maps to a JSON-safe format with __mapEntries arrays.
+     *
+     * @returns JSON string representation of the cache
+     */
+    private _serialize(): string {
+      return JSON.stringify(this._cache, (_key, value) => {
+        if (value instanceof Map) {
+          return { __mapEntries: Array.from(value.entries()) };
+        }
+        return value;
+      });
     }
 
     /**
