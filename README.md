@@ -149,33 +149,33 @@ Compressors must be synchronous because persistence runs inside a `beforeunload`
 
 ### NcachedService
 
-| Method | Signature | Description |
-|---|---|---|
-| `set` | `set<T>(value: T, ...keys: string[], options?: ISetOptions): void` | Store a value. Min 2 keys. Optional TTL via `{ ttl: ms }`. |
-| `get` | `get<T>(...keys: string[]): T` | Retrieve a value. Throws if missing or expired. |
-| `getOrDefault` | `getOrDefault<T>(defaultValue: T, ...keys: string[]): T` | Retrieve a value or return the default. Never throws for missing keys. |
-| `remove` | `remove(...keys: string[]): void` | Delete a single cache entry. No-op if path does not exist. |
-| `clear` | `clear(...keys: string[]): void` | Delete an entire subtree/namespace. |
-| `clearAll` | `clearAll(): void` | Wipe all cached data. Clears localStorage if persistence is enabled. |
-| `cacheObservable` | `cacheObservable<T>(source: Observable<T>, options: ICacheObservableOptions<T>, ...keys: string[]): Observable<T>` | Cache an Observable result with deduplication. |
+| Method            | Signature                                                                                                          | Description                                                            |
+|-------------------|--------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------|
+| `set`             | `set<T>(value: T, ...keys: string[], options?: ISetOptions): void`                                                 | Store a value. Min 2 keys. Optional TTL via `{ ttl: ms }`.             |
+| `get`             | `get<T>(...keys: string[]): T`                                                                                     | Retrieve a value. Throws if missing or expired.                        |
+| `getOrDefault`    | `getOrDefault<T>(defaultValue: T, ...keys: string[]): T`                                                           | Retrieve a value or return the default. Never throws for missing keys. |
+| `remove`          | `remove(...keys: string[]): void`                                                                                  | Delete a single cache entry. No-op if path does not exist.             |
+| `clear`           | `clear(...keys: string[]): void`                                                                                   | Delete an entire subtree/namespace.                                    |
+| `clearAll`        | `clearAll(): void`                                                                                                 | Wipe all cached data. Clears localStorage if persistence is enabled.   |
+| `cacheObservable` | `cacheObservable<T>(source: Observable<T>, options: ICacheObservableOptions<T>, ...keys: string[]): Observable<T>` | Cache an Observable result with deduplication.                         |
 
 ### Interfaces
 
-| Interface | Description |
-|---|---|
-| `ISetOptions` | `{ ttl?: number }` -- TTL in milliseconds. |
+| Interface                    | Description                                                            |
+|------------------------------|------------------------------------------------------------------------|
+| `ISetOptions`                | `{ ttl?: number }` -- TTL in milliseconds.                             |
 | `ICacheObservableOptions<T>` | `{ ttl?: number; defaultValue?: T }` -- Options for `cacheObservable`. |
-| `INcachedConfig` | Persistence configuration provided via `provideNcachedConfig()`. |
-| `ICompressor` | `{ compress(data: string): string; decompress(data: string): string }` |
-| `ICacheEntry<T>` | `{ value: T; expiresAt: number \| null }` -- Internal entry wrapper. |
-| `ICacheObject` | Recursive cache hierarchy type. |
+| `INcachedConfig`             | Persistence configuration provided via `provideNcachedConfig()`.       |
+| `ICompressor`                | `{ compress(data: string): string; decompress(data: string): string }` |
+| `ICacheEntry<T>`             | `{ value: T; expiresAt: number \| null }` -- Internal entry wrapper.   |
+| `ICacheObject`               | Recursive cache hierarchy type.                                        |
 
 ### Utilities
 
-| Export | Description |
-|---|---|
-| `provideNcachedConfig(config)` | Convenience provider factory for `NCACHED_CONFIG`. |
-| `NCACHED_CONFIG` | Angular `InjectionToken<INcachedConfig>`. |
-| `LzStringCompressor` | lz-string UTF-16 compressor. |
-| `NoopCompressor` | Pass-through (no compression). |
-| `CacheServiceErrors` | Namespace with error classes: `KeyNotFound`, `ValueNotFound`, `MapNotFound`, `InsufficientsKeysProvidedError`. |
+| Export                         | Description                                                                                                    |
+|--------------------------------|----------------------------------------------------------------------------------------------------------------|
+| `provideNcachedConfig(config)` | Convenience provider factory for `NCACHED_CONFIG`.                                                             |
+| `NCACHED_CONFIG`               | Angular `InjectionToken<INcachedConfig>`.                                                                      |
+| `LzStringCompressor`           | lz-string UTF-16 compressor.                                                                                   |
+| `NoopCompressor`               | Pass-through (no compression).                                                                                 |
+| `CacheServiceErrors`           | Namespace with error classes: `KeyNotFound`, `ValueNotFound`, `MapNotFound`, `InsufficientsKeysProvidedError`. |
