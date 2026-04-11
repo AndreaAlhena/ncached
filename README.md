@@ -8,7 +8,13 @@ A lightweight, hierarchical in-memory cache for Angular applications. Supports T
 npm install ncached
 ```
 
-Peer dependencies: `@angular/core >=13`, `@angular/common >=13`, `rxjs >=7`.
+## Compatibility
+
+| Dependency | Minimum version | Reason |
+|------------|----------------|--------|
+| `@angular/core` | 12.0.0 | Partial Ivy compilation requires the Angular Linker (default since v12) |
+| `@angular/common` | 12.0.0 | Same as above |
+| `rxjs` | 7.0.0 | Uses `throwError(() => error)` factory form (RxJS 7+) |
 
 ## Quick Start
 
