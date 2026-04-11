@@ -108,8 +108,9 @@ export class NcachedService {
       }
 
       const entry = map.get(mapKey)!;
+      const isExpired = entry.expiresAt !== null && Date.now() > entry.expiresAt;
 
-      if (entry.expiresAt !== null && Date.now() > entry.expiresAt) {
+      if (isExpired) {
         map.delete(mapKey);
         throw new CacheServiceErrors.ValueNotFound(mapKey);
       }
@@ -163,6 +164,7 @@ export class NcachedService {
         }
 
         const json = this._compressor.decompress(raw);
+
         this._cache = this._deserialize(json);
       } catch {
         this._cache = {};
@@ -236,6 +238,7 @@ export class NcachedService {
           }
 
           result[key] = map;
+
         } else if (node && typeof node === 'object') {
           result[key] = this._restoreMaps(node);
         }
@@ -269,13 +272,14 @@ export class NcachedService {
      * @param keys - Remaining navigation keys
      * @returns ICacheObject if recursing, undefined when value is set
      */
-    private _setInCache<T = any>(cacheObj: ICacheObject, value: T, options: ISetOptions | undefined, ...keys: string[]): ICacheObject | undefined {
+    private _setInCache<T = any>(cacheObj: ICacheObject, value: T, options: ISetOptions | undefined, ...keys: string[]): void {
       if (keys.length > 2) {
         if (!cacheObj[keys[0]]) {
           cacheObj[keys[0]] = {};
         }
 
-        return this._setInCache(cacheObj[keys[0]] as ICacheObject, value, options, ...keys.slice(1));
+        this._setInCache(cacheObj[keys[0]] as ICacheObject, value, options, ...keys.slice(1));
+        return;
       }
 
       if (!(cacheObj[keys[0]] instanceof Map)) {
@@ -288,8 +292,6 @@ export class NcachedService {
       };
 
       (cacheObj[keys[0]] as Map<string, ICacheEntry<T>>).set(keys[1], entry);
-
-      return;
     }
   
     /**
@@ -320,6 +322,7 @@ export class NcachedService {
         if (!(keys[i] in target)) {
           return;
         }
+
         target = target[keys[i]] as ICacheObject;
       }
 
@@ -390,6 +393,7 @@ export class NcachedService {
     public cacheObservable<T = any>(source: Observable<T>, options: ICacheObservableOptions<T>, ...keys: string[]): Observable<T> {
       try {
         const cached = this.get<T>(...keys);
+
         return of(cached);
       } catch {
         // Not in cache or expired — proceed
@@ -495,6 +499,7 @@ export class NcachedService {
 
       try {
         const map = this._findMap(this._cache, ...keys.slice(0, keys.length - 1));
+
         map.delete(keys[keys.length - 1]);
       } catch {
         // Path doesn't exist — nothing to remove
@@ -530,6 +535,6 @@ export class NcachedService {
         throw new CacheServiceErrors.InsufficientsKeysProvidedError();
       }
 
-      this._setInCache(this._cache, value, options, ...keys);
+      this._setInCache<T>(this._cache, value, options, ...keys);
     }
 }
