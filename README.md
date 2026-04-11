@@ -10,11 +10,11 @@ npm install ncached
 
 ## Compatibility
 
-| Dependency | Minimum version | Reason |
-|------------|----------------|--------|
-| `@angular/core` | 12.0.0 | Partial Ivy compilation requires the Angular Linker (default since v12) |
-| `@angular/common` | 12.0.0 | Same as above |
-| `rxjs` | 7.0.0 | Uses `throwError(() => error)` factory form (RxJS 7+) |
+| Dependency        | Min version | Reason                                                                  |
+|-------------------|-------------|-------------------------------------------------------------------------|
+| `@angular/core`   |      12.0.0 | Partial Ivy compilation requires the Angular Linker (default since v12) |
+| `@angular/common` |      12.0.0 | Same as above                                                           |
+| `rxjs`            |       7.0.0 | Uses `throwError(() => error)` factory form (RxJS 7+)                   |
 
 ## Quick Start
 
