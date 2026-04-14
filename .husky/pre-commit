@@ -1,1 +1,1 @@
-npm test
+npx ng test ncached --no-watch --browsers=ChromeHeadless
