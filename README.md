@@ -157,7 +157,7 @@ Compressors must be synchronous because persistence runs inside a `beforeunload`
 
 | Method            | Signature                                                                                                          | Description                                                            |
 |-------------------|--------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------|
-| `set`             | `set<T>(value: T, ...keys: string[], options?: ISetOptions): void`                                                 | Store a value. Min 2 keys. Optional TTL via `{ ttl: ms }`.             |
+| `set`             | `set<T>(value: T, ...args: Array<string \| ISetOptions>): void`                                                    | Store a value. Min 2 keys. Optional TTL via `{ ttl: ms }` as last arg. |
 | `get`             | `get<T>(...keys: string[]): T`                                                                                     | Retrieve a value. Throws if missing or expired.                        |
 | `getOrDefault`    | `getOrDefault<T>(defaultValue: T, ...keys: string[]): T`                                                           | Retrieve a value or return the default. Never throws for missing keys. |
 | `remove`          | `remove(...keys: string[]): void`                                                                                  | Delete a single cache entry. No-op if path does not exist.             |

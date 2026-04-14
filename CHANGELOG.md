@@ -6,7 +6,9 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.2.0] - 2026-04-10
+## [1.0.0] - 2026-04-14
+
+First stable release. The public API is considered stable.
 
 ### Added
 
@@ -48,20 +50,11 @@ This project follows [Semantic Versioning](https://semver.org/).
   - `LzStringCompressor` — uses `lz-string`'s `compressToUTF16` / `decompressFromUTF16` for real
     compression optimized for localStorage.
 
-- **New dependency:** `lz-string ^1.5.0` (regular dependency).
-- **New peer dependency:** `rxjs >=7.0.0`.
-- Angular peer dependency range widened to `>=13.0.0`.
-
-### Fixed
-
-- `ttl: 0` was silently treated as "no expiration" due to a falsy check. Changed to `!= null`
-  so that `ttl: 0` correctly produces an immediately-expired entry.
-- `set()` now throws `InsufficientsKeysProvidedError` when fewer than 2 string keys remain after
-  option parsing, preventing silent undefined-key writes.
-
----
-
-## [0.1.4] - 2026-04-10
+- **New dependency:** `lz-string ^1.5.0`.
+- **Peer dependencies:** `@angular/core >=12.0.0`, `@angular/common >=12.0.0`, `rxjs >=7.0.0`.
+- MIT license.
+- Comprehensive JSDoc with `@example` blocks on all public methods and error classes.
+- npm metadata: `description`, `author`, `keywords`, `repository`, `bugs`, `homepage`.
 
 ### Fixed
 
@@ -71,3 +64,15 @@ This project follows [Semantic Versioning](https://semver.org/).
   `this._cache[keys[0]]` in the base case instead of using the `cacheObj` parameter, causing
   deep writes to land at the root level. Auto-creation of intermediate `ICacheObject` nodes
   was also added.
+- `ttl: 0` was silently treated as "no expiration" due to a falsy check. Changed to `!= null`
+  so that `ttl: 0` correctly produces an immediately-expired entry.
+- `set()` now throws `InsufficientsKeysProvidedError` when fewer than 2 string keys remain after
+  option parsing, preventing silent undefined-key writes.
+- `_setInCache` return type corrected from `ICacheObject | undefined` to `void` (no caller used
+  the return value).
+
+### Changed
+
+- Angular peer dependency widened from `>=13.0.0` to `>=12.0.0` (Angular 12 is the lowest version
+  whose linker can consume partial Ivy compilation output).
+- Consistent code spacing: declarative blocks separated from logic blocks throughout the service.

@@ -1,8 +1,11 @@
 {
   "name": "ncached",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "A lightweight, hierarchical in-memory cache for Angular with TTL, Observable integration, request deduplication, and optional localStorage persistence",
-  "author": "Andrea Alhena <andrea.tantimonaco@outlook.com>",
+  "author": {
+    "name": "Andrea \"Alhena\" Tantimonaco",
+    "url": "https://github.com/AndreaAlhena"
+  },
   "license": "MIT",
   "keywords": [
     "angular",
