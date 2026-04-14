@@ -9,7 +9,7 @@ A lightweight, hierarchical in-memory cache for Angular applications. Supports T
 ## Installation
 
 ```bash
-npm install ncached
+npm install ng-ncached
 ```
 
 ## Compatibility
@@ -25,7 +25,7 @@ npm install ncached
 `NcachedService` is provided in root -- just inject it:
 
 ```typescript
-import { NcachedService } from 'ncached';
+import { NcachedService } from 'ng-ncached';
 
 @Component({ ... })
 export class MyComponent {
@@ -84,7 +84,7 @@ cache.clearAll();
 `cacheObservable()` wraps an Observable source (typically an HTTP call), caches the emitted value, and deduplicates concurrent requests for the same keys:
 
 ```typescript
-import { NcachedService, ICacheObservableOptions } from 'ncached';
+import { NcachedService, ICacheObservableOptions } from 'ng-ncached';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
@@ -112,7 +112,7 @@ this._ncached.cacheObservable(source$, { ttl: 60000, defaultValue: null }, 'user
 Enable localStorage persistence so the cache survives page reloads. The cache is saved on `beforeunload` and restored on service initialization.
 
 ```typescript
-import { provideNcachedConfig } from 'ncached';
+import { provideNcachedConfig } from 'ng-ncached';
 
 // In your app config or module providers:
 providers: [
@@ -130,7 +130,7 @@ providers: [
 By default, persistence uses `NoopCompressor` (no compression). For smaller storage footprint, use the built-in lz-string compressor:
 
 ```typescript
-import { provideNcachedConfig, LzStringCompressor } from 'ncached';
+import { provideNcachedConfig, LzStringCompressor } from 'ng-ncached';
 
 providers: [
   provideNcachedConfig({
@@ -145,7 +145,7 @@ providers: [
 You can also implement the `ICompressor` interface for a custom strategy:
 
 ```typescript
-import { ICompressor } from 'ncached';
+import { ICompressor } from 'ng-ncached';
 
 export class MyCompressor implements ICompressor {
   public compress(data: string): string { /* ... */ }

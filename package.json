@@ -1,5 +1,5 @@
 {
-  "name": "ncached",
+  "name": "ng-ncached",
   "version": "1.0.0",
   "description": "A lightweight, hierarchical in-memory cache for Angular with TTL, Observable integration, request deduplication, and optional localStorage persistence",
   "author": {
