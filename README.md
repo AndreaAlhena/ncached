@@ -1,3 +1,7 @@
+<p align="center">
+   <img src="https://iili.io/2StGF3l.th.png" alt="ncached logo">
+</p>
+
 # ncached
 
 A lightweight, hierarchical in-memory cache for Angular applications. Supports TTL expiration, observable caching with request deduplication, and optional localStorage persistence with pluggable compression.
@@ -51,7 +55,7 @@ Pass an options object as the last argument to `set()`:
 cache.set('temporary', 'session', 'token', { ttl: 30000 }); // expires in 30 seconds
 ```
 
-After expiration, `get()` throws `CacheServiceErrors.ValueNotFound` and the entry is removed automatically.
+After expiration, `get()` throws `NcachedServiceErrors.ValueNotFound` and the entry is removed automatically.
 
 ## getOrDefault
 
@@ -184,4 +188,4 @@ Compressors must be synchronous because persistence runs inside a `beforeunload`
 | `NCACHED_CONFIG`               | Angular `InjectionToken<INcachedConfig>`.                                                                      |
 | `LzStringCompressor`           | lz-string UTF-16 compressor.                                                                                   |
 | `NoopCompressor`               | Pass-through (no compression).                                                                                 |
-| `CacheServiceErrors`           | Namespace with error classes: `KeyNotFound`, `ValueNotFound`, `MapNotFound`, `InsufficientsKeysProvidedError`. |
+| `NcachedServiceErrors`           | Namespace with error classes: `KeyNotFound`, `ValueNotFound`, `MapNotFound`, `InsufficientsKeysProvidedError`. |

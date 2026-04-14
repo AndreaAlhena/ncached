@@ -8,7 +8,7 @@ import { ICacheObservableOptions } from '../interfaces/cache-observable-options.
 import { ICompressor } from '../interfaces/compressor.interface';
 import { INcachedConfig } from '../interfaces/ncached-config.interface';
 import { ISetOptions } from '../interfaces/set-options.interface';
-import { CacheServiceErrors } from '../namespaces/cache-service-errors.namespace';
+import { NcachedServiceErrors } from '../namespaces/ncached-service-errors.namespace';
 import { NCACHED_CONFIG } from '../tokens/ncached-config.token';
 
 /**
@@ -69,7 +69,7 @@ export class NcachedService {
         this._registerBeforeUnload();
       }
     }
-  
+
     /**
      * Deserializes a JSON string into an ICacheObject, reconstructing Maps.
      * Discards expired entries during reconstruction.
@@ -90,21 +90,21 @@ export class NcachedService {
      * @param keys - Navigation keys (min 2). All keys except the last navigate the hierarchy;
      *               the last key is used for the Map lookup.
      * @returns The cached value of type T, unwrapped from its ICacheEntry container
-     * @throws {CacheServiceErrors.InsufficientsKeysProvidedError} If fewer than two keys are provided
-     * @throws {CacheServiceErrors.KeyNotFound} If a navigation key does not exist in the hierarchy
-     * @throws {CacheServiceErrors.MapNotFound} If a navigation key does not point to a Map
-     * @throws {CacheServiceErrors.ValueNotFound} If the map entry key is missing or the entry has expired
+     * @throws {NcachedServiceErrors.InsufficientsKeysProvidedError} If fewer than two keys are provided
+     * @throws {NcachedServiceErrors.KeyNotFound} If a navigation key does not exist in the hierarchy
+     * @throws {NcachedServiceErrors.MapNotFound} If a navigation key does not point to a Map
+     * @throws {NcachedServiceErrors.ValueNotFound} If the map entry key is missing or the entry has expired
      */
     private _findInCache<T = any>(...keys: string[]): T {
       if (keys.length < 2) {
-        throw new CacheServiceErrors.InsufficientsKeysProvidedError();
+        throw new NcachedServiceErrors.InsufficientsKeysProvidedError();
       }
 
       const map = this._findMap<ICacheEntry<T>>(this._cache, ...keys.slice(0, keys.length - 1));
       const mapKey = keys[keys.length - 1];
 
       if (!map.has(mapKey)) {
-        throw new CacheServiceErrors.ValueNotFound(mapKey);
+        throw new NcachedServiceErrors.ValueNotFound(mapKey);
       }
 
       const entry = map.get(mapKey)!;
@@ -112,12 +112,12 @@ export class NcachedService {
 
       if (isExpired) {
         map.delete(mapKey);
-        throw new CacheServiceErrors.ValueNotFound(mapKey);
+        throw new NcachedServiceErrors.ValueNotFound(mapKey);
       }
 
       return entry.value;
     }
-  
+
     /**
      * Recursively navigates the cache hierarchy to locate the target Map.
      * Each key except the last peels one level of ICacheObject nesting;
@@ -126,24 +126,24 @@ export class NcachedService {
      * @param cacheObj - The current level of the cache hierarchy to search
      * @param keys - One or more navigation keys leading to the target Map
      * @returns The Map instance found at the end of the key chain
-     * @throws {CacheServiceErrors.KeyNotFound} If a navigation key does not exist in the hierarchy
-     * @throws {CacheServiceErrors.MapNotFound} If the final key does not point to a Map instance
+     * @throws {NcachedServiceErrors.KeyNotFound} If a navigation key does not exist in the hierarchy
+     * @throws {NcachedServiceErrors.MapNotFound} If the final key does not point to a Map instance
      */
     private _findMap<T = any>(cacheObj: ICacheObject | Map<string, T>, ...keys: string[]): Map<string, T> {
       if (keys.length >= 1 && !(keys[0] in cacheObj)) {
-        throw new CacheServiceErrors.KeyNotFound(keys[0]);
+        throw new NcachedServiceErrors.KeyNotFound(keys[0]);
       }
-  
+
       const obj = (cacheObj as ICacheObject)[keys[0]];
-  
+
       if (keys.length === 1) {
         if (obj instanceof Map) {
           return obj;
         }
-  
-        throw new CacheServiceErrors.MapNotFound(keys[0]);
+
+        throw new NcachedServiceErrors.MapNotFound(keys[0]);
       }
-  
+
       return this._findMap(obj as ICacheObject, ...keys.slice(1));
     }
 
@@ -270,7 +270,6 @@ export class NcachedService {
      * @param value - Value to store
      * @param options - Optional set options (TTL)
      * @param keys - Remaining navigation keys
-     * @returns ICacheObject if recursing, undefined when value is set
      */
     private _setInCache<T = any>(cacheObj: ICacheObject, value: T, options: ISetOptions | undefined, ...keys: string[]): void {
       if (keys.length > 2) {
@@ -293,7 +292,7 @@ export class NcachedService {
 
       (cacheObj[keys[0]] as Map<string, ICacheEntry<T>>).set(keys[1], entry);
     }
-  
+
     /**
      * Clears an entire subtree or map layer from the cache.
      * Navigates to the parent using all keys except the last, then deletes the last key's entry.
@@ -432,9 +431,9 @@ export class NcachedService {
      *
      * @param keys - Navigation keys (min 2). All but the last navigate; the last is the Map entry key.
      * @returns The cached value of type T
-     * @throws {CacheServiceErrors.InsufficientsKeysProvidedError} If fewer than two keys are provided
-     * @throws {CacheServiceErrors.KeyNotFound} If a navigation key does not exist
-     * @throws {CacheServiceErrors.ValueNotFound} If the entry is missing or has expired
+     * @throws {NcachedServiceErrors.InsufficientsKeysProvidedError} If fewer than two keys are provided
+     * @throws {NcachedServiceErrors.KeyNotFound} If a navigation key does not exist
+     * @throws {NcachedServiceErrors.ValueNotFound} If the entry is missing or has expired
      *
      * @example
      * ```typescript
@@ -449,7 +448,7 @@ export class NcachedService {
     public get<T = any>(...keys: string[]): T {
       return this._findInCache<T>(...keys) as T;
     }
-  
+
     /**
      * Retrieves a cached value, returning a default if the key is missing or expired.
      * Unlike get(), this method never throws for missing or expired entries.
@@ -514,7 +513,7 @@ export class NcachedService {
      * @param value - The value to cache
      * @param args - String keys (min 2) optionally followed by an ISetOptions object
      * @returns void
-     * @throws {CacheServiceErrors.InsufficientsKeysProvidedError} If fewer than 2 string keys are provided
+     * @throws {NcachedServiceErrors.InsufficientsKeysProvidedError} If fewer than 2 string keys are provided
      *
      * @example
      * ```typescript
@@ -532,7 +531,7 @@ export class NcachedService {
       const { keys, options } = this._parseSetArgs(args);
 
       if (keys.length < 2) {
-        throw new CacheServiceErrors.InsufficientsKeysProvidedError();
+        throw new NcachedServiceErrors.InsufficientsKeysProvidedError();
       }
 
       this._setInCache<T>(this._cache, value, options, ...keys);

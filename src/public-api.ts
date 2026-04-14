@@ -15,7 +15,7 @@ export * from './lib/interfaces/ncached-config.interface';
 export * from './lib/interfaces/set-options.interface';
 
 // Namespaces
-export * from './lib/namespaces/cache-service-errors.namespace';
+export * from './lib/namespaces/ncached-service-errors.namespace';
 
 // Services
 export * from './lib/services/ncached.service';

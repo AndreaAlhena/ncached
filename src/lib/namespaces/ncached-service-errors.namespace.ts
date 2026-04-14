@@ -2,7 +2,7 @@
  * Namespace containing all custom error classes thrown by NcachedService.
  * Each error class targets a specific failure point in the cache lookup chain.
  */
-export namespace CacheServiceErrors {
+export namespace NcachedServiceErrors {
     /**
      * Thrown when fewer than two keys are provided to a cache operation.
      * At least a namespace key and a map entry key are required.
@@ -73,4 +73,3 @@ export namespace CacheServiceErrors {
       }
     }
   }
-  
