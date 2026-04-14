@@ -375,14 +375,14 @@ export class NcachedService {
      * @example
      * ```typescript
      * // Cache an HTTP GET for 30 seconds
-     * this._cache.cacheObservable(
+     * this._ncached.cacheObservable(
      *   this._http.get<IUser[]>('/api/users'),
      *   { ttl: 30000 },
      *   'api', 'users'
      * ).subscribe(users => console.log(users));
      *
      * // With a fallback value on error
-     * this._cache.cacheObservable(
+     * this._ncached.cacheObservable(
      *   this._http.get<IConfig>('/api/config'),
      *   { ttl: 60000, defaultValue: DEFAULT_CONFIG },
      *   'api', 'config'

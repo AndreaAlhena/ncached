@@ -29,12 +29,12 @@ import { NcachedService } from 'ncached';
 
 @Component({ ... })
 export class MyComponent {
-  constructor(private cache: NcachedService) {
+  constructor(private _ncached: NcachedService) {
     // Store a value under module "users" with key "currentUser"
-    cache.set({ name: 'Alice' }, 'users', 'currentUser');
+    this._ncached.set({ name: 'Alice' }, 'users', 'currentUser');
 
     // Retrieve it
-    const user = cache.get<{ name: string }>('users', 'currentUser');
+    const user = this._ncached.get<{ name: string }>('users', 'currentUser');
     // => { name: 'Alice' }
   }
 }
@@ -88,13 +88,13 @@ import { NcachedService, ICacheObservableOptions } from 'ncached';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
-  constructor(private http: HttpClient, private cache: NcachedService) {}
+  constructor(private _http: HttpClient, private _ncached: NcachedService) {}
 
   public getUser(id: string): Observable<IUser> {
-    const source$ = this.http.get<IUser>(`/api/users/${id}`);
+    const source$ = this._http.get<IUser>(`/api/users/${id}`);
     const options: ICacheObservableOptions<IUser> = { ttl: 60000 };
 
-    return this.cache.cacheObservable(source$, options, 'users', id);
+    return this._ncached.cacheObservable(source$, options, 'users', id);
   }
 }
 ```
@@ -104,7 +104,7 @@ If the value is already cached and not expired, the source Observable is never s
 You can provide a `defaultValue` that is emitted if the source errors:
 
 ```typescript
-this.cache.cacheObservable(source$, { ttl: 60000, defaultValue: null }, 'users', id);
+this._ncached.cacheObservable(source$, { ttl: 60000, defaultValue: null }, 'users', id);
 ```
 
 ## Persistence
@@ -148,8 +148,8 @@ You can also implement the `ICompressor` interface for a custom strategy:
 import { ICompressor } from 'ncached';
 
 export class MyCompressor implements ICompressor {
-  compress(data: string): string { /* ... */ }
-  decompress(data: string): string { /* ... */ }
+  public compress(data: string): string { /* ... */ }
+  public decompress(data: string): string { /* ... */ }
 }
 ```
 
