@@ -1,15 +1,24 @@
 /* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
 /* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
 {
-  "extends": "../../tsconfig.json",
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../out-tsc/lib",
+    "outDir": "./out-tsc/lib",
     "declaration": true,
     "declarationMap": true,
+    "experimentalDecorators": true,
     "inlineSources": true,
-    "types": []
+    "types": [],
+    "lib": [
+      "dom",
+      "es2022"
+    ]
+  },
+  "angularCompilerOptions": {
+    "enableResourceInlining": true
   },
   "exclude": [
+    "src/test.ts",
     "**/*.spec.ts"
   ]
 }
