@@ -1,1 +1,1 @@
-npx ng test ncached --no-watch --browsers=ChromeHeadless
+npx lint-staged

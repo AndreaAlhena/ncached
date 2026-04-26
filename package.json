@@ -32,14 +32,17 @@
     "test": "ng test",
     "prepare": "husky"
   },
+  "lint-staged": {
+    "src/**/*.ts": "npm test"
+  },
   "peerDependencies": {
     "@angular/common": ">=12.0.0",
     "@angular/core": ">=12.0.0",
     "rxjs": ">=7.0.0"
   },
   "dependencies": {
-    "tslib": "^2.3.0",
-    "lz-string": "^1.5.0"
+    "lz-string": "^1.5.0",
+    "tslib": "^2.3.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^19.0.6",
@@ -58,6 +61,7 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
+    "lint-staged": "^15.5.2",
     "ng-packagr": "^19.0.0",
     "rxjs": "~7.8.0",
     "typescript": "~5.6.2",
