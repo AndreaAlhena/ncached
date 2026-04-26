@@ -72,4 +72,25 @@ export namespace NcachedServiceErrors {
         super(`A value has not been found in the Map for the given ${key} key`);
       }
     }
+
+    /**
+     * Thrown when a value cannot be deep-cloned by structuredClone.
+     * Typically caused by functions, DOM nodes, or class instances with private fields.
+     * The original platform error is preserved on the `cause` property.
+     *
+     * @example
+     * ```typescript
+     * service.set(() => 1, 'mod', 'key'); // throws UncloneableValueError
+     * ```
+     */
+    export class UncloneableValueError extends Error {
+      /**
+       * @param key - The map entry key the uncloneable value was being stored under or read from
+       * @param cause - The underlying error thrown by structuredClone (typically a DataCloneError)
+       */
+      constructor(key: string, cause: unknown) {
+        super(`The value for key "${key}" cannot be cloned by structuredClone — typically caused by functions, DOM nodes, or class instances with private fields`);
+        (this as any).cause = cause;
+      }
+    }
   }

@@ -14,6 +14,7 @@ It packs the patterns most apps end up reinventing — caching HTTP results, ded
 ## Highlights
 
 - **Hierarchical cache** — organise data into namespaces and sub-namespaces of any depth, backed by native `Map` instances.
+- **Immutable by design** — `set()` and `get()` always deep-clone via `structuredClone`, so cache state can never be mutated from the outside.
 - **TTL on every entry** — pass `{ ttl: ms }` to `set()` and the entry expires automatically.
 - **Observable caching** — `cacheObservable()` wraps an HTTP call (or any `Observable`), caches the result, and **deduplicates** concurrent in-flight requests via `shareReplay`.
 - **Safe accessors** — `getOrDefault()` never throws; the rest throws **typed** errors you can discriminate with `instanceof`.

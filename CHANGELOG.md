@@ -6,6 +6,14 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.1.0] - 2026-04-26
+
+### Added
+
+- **Always-on consumer-facing immutability** (#15) — `set()`, `get()`, `getOrDefault()`, and the `cacheObservable()` cache-hit path now deep-clone values via `structuredClone`. Consumers can no longer mutate internal cache state by mutating values they passed in or received. `NcachedServiceErrors.UncloneableValueError` is thrown when a value cannot be structured-cloned (functions, DOM nodes, class instances with private fields). The `@ungap/structured-clone` polyfill is shipped as a runtime dependency to support the full Angular 12+ peer-dep window — modern platforms use native `structuredClone` automatically.
+
+---
+
 ## [1.0.0] - 2026-04-14
 
 First stable release. The public API is considered stable.

@@ -64,7 +64,11 @@ this._cache.set<IUser>(user, 'users', user.id);
 ```
 
 :::note
-**Persistence note** — if you enable [persistence](./persistence-and-compression.md), values are serialised to JSON on `beforeunload`, so anything that doesn't survive `JSON.stringify` (functions, class instances with methods, `Date`, `Map`, circular refs) won't round-trip. For pure in-memory use, this doesn't apply.
+**Values are deep-cloned on the way in** via `structuredClone` (since v1.1.0). Mutating your source object after `set()` does **not** affect the cached value. The only types `set()` cannot accept are functions, DOM nodes, and class instances with private fields — those throw [`UncloneableValueError`](../api/errors.md). Plain objects, arrays, primitives, `Date`, `Map`, `Set`, typed arrays, etc. all clone cleanly.
+:::
+
+:::note
+**Persistence note** — if you enable [persistence](./persistence-and-compression.md), values are also serialised to JSON on `beforeunload`. JSON is lossier than `structuredClone` (no `Map`, `Set`, `Date`, `undefined`), so anything that survives the in-memory clone but not the persistence round-trip will quietly degrade across reloads.
 :::
 
 ## With a TTL

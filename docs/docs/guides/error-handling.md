@@ -10,7 +10,7 @@ sidebar_position: 9
 
 For most read sites, prefer **[`getOrDefault()`](./getting-values.md#getordefault--safe-never-throws-on-miss)** — it's the built-in safe accessor, and you won't need any of the patterns on this page. This guide is for the cases where the typed errors *do* matter.
 
-## The four error types
+## The five error types
 
 | Error                                              | Thrown by                | Meaning                                                                |
 |----------------------------------------------------|--------------------------|------------------------------------------------------------------------|
@@ -18,8 +18,9 @@ For most read sites, prefer **[`getOrDefault()`](./getting-values.md#getordefaul
 | `KeyNotFound`                                      | `get`, `cacheObservable` | A namespace key in the path doesn't exist                              |
 | `MapNotFound`                                      | `get`, `cacheObservable` | A key in the path exists but doesn't point to a `Map`                  |
 | `ValueNotFound`                                    | `get`, `cacheObservable` | The path is valid but the final key has no value, **or** the entry has expired |
+| `UncloneableValueError`                            | `set`, `get`             | The value cannot be deep-cloned by `structuredClone` (typically a function, DOM node, or class instance with private fields) |
 
-All four extend the native `Error` and carry a descriptive `message`.
+All five extend the native `Error` and carry a descriptive `message`. `UncloneableValueError` additionally exposes the original platform error on its `cause` property.
 
 `cacheObservable()` only surfaces these on the **first** subscription path before falling through to the source. Cache misses inside `cacheObservable()` are handled internally — they trigger a fetch, not a throw.
 
@@ -56,6 +57,12 @@ try {
 
   if (error instanceof NcachedServiceErrors.ValueNotFound) {
     // Cache miss for this specific entry, OR the entry has expired.
+    return;
+  }
+
+  if (error instanceof NcachedServiceErrors.UncloneableValueError) {
+    // The cached value couldn't be deep-cloned for return. Inspect error.cause for the underlying DataCloneError.
+    console.error('Uncloneable value:', error.message, error.cause);
     return;
   }
 

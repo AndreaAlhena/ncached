@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@angular/core';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, finalize, shareReplay, tap } from 'rxjs/operators';
+import structuredClonePolyfill from '@ungap/structured-clone';
 import { NoopCompressor } from '../compressors/noop.compressor';
 import { ICacheEntry } from '../interfaces/cache-entry.interface';
 import { ICacheObject } from '../interfaces/cache-object.interface';
@@ -71,6 +72,26 @@ export class NcachedService {
     }
 
     /**
+     * Deep-clones a value using the platform's native structuredClone when available,
+     * falling back to the @ungap/structured-clone polyfill on older runtimes.
+     * Wraps platform DataCloneError instances in NcachedServiceErrors.UncloneableValueError
+     * so consumers can discriminate clone failures via instanceof.
+     *
+     * @template T The type of the value being cloned
+     * @param value - The value to deep-clone
+     * @param key - The Map entry key associated with this value (used in the error message for diagnostics)
+     * @returns A deep clone of the input value
+     * @throws {NcachedServiceErrors.UncloneableValueError} If the value cannot be cloned (e.g. functions, DOM nodes)
+     */
+    private _clone<T>(value: T, key: string): T {
+      try {
+        return structuredClonePolyfill(value) as T;
+      } catch (cause) {
+        throw new NcachedServiceErrors.UncloneableValueError(key, cause);
+      }
+    }
+
+    /**
      * Deserializes a JSON string into an ICacheObject, reconstructing Maps.
      * Discards expired entries during reconstruction.
      *
@@ -115,7 +136,7 @@ export class NcachedService {
         throw new NcachedServiceErrors.ValueNotFound(mapKey);
       }
 
-      return entry.value;
+      return this._clone(entry.value, mapKey);
     }
 
     /**
@@ -286,7 +307,7 @@ export class NcachedService {
       }
 
       const entry: ICacheEntry<T> = {
-        value,
+        value: this._clone(value, keys[1]),
         expiresAt: options?.ttl != null ? Date.now() + options.ttl : null
       };
 

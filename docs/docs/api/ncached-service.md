@@ -43,6 +43,9 @@ Stores `value` in the cache under the given key path.
 | Error                                                 | When                                |
 |-------------------------------------------------------|-------------------------------------|
 | `NcachedServiceErrors.InsufficientsKeysProvidedError` | Fewer than two **string** keys were passed |
+| `NcachedServiceErrors.UncloneableValueError`          | The value cannot be deep-cloned by `structuredClone` (functions, DOM nodes, etc.) |
+
+**Cloning** — since v1.1.0, `set()` deep-clones the value before storing it via `structuredClone`. Mutating your source object after the call does **not** affect the cached value.
 
 **Example**
 
@@ -76,8 +79,11 @@ Reads a value out of the cache using the same key path it was stored under.
 | `NcachedServiceErrors.KeyNotFound`                    | A namespace key in the path doesn't exist                           |
 | `NcachedServiceErrors.MapNotFound`                    | A key in the path exists but doesn't point to a `Map`               |
 | `NcachedServiceErrors.ValueNotFound`                  | The map entry is missing **or** the entry has expired (TTL)         |
+| `NcachedServiceErrors.UncloneableValueError`          | The cached value cannot be deep-cloned by `structuredClone`         |
 
 When an entry is expired, it is removed from the underlying `Map` before throwing.
+
+**Cloning** — since v1.1.0, `get()` returns a deep clone of the cached value via `structuredClone`. Mutating the returned object does **not** affect the cache, and two consecutive `get()` calls produce two independent copies.
 
 **Example**
 

@@ -91,6 +91,28 @@ class ValueNotFound extends Error {
 
 ---
 
+## `UncloneableValueError`
+
+Thrown by `set()` (when the value being stored cannot be deep-cloned) and by `get()` / `getOrDefault()` / the cache-hit branch of `cacheObservable()` (when the value being read cannot be deep-cloned). Since v1.1.0 the cache always defensively clones values via `structuredClone`, so any value that `structuredClone` rejects surfaces here as a typed error instead of silently leaking a reference.
+
+Typical causes: functions, DOM nodes, class instances with private fields, or other host-defined objects `structuredClone` doesn't know how to copy.
+
+```typescript
+class UncloneableValueError extends Error {
+  constructor(key: string, cause: unknown);
+}
+```
+
+**Message**
+
+> `The value for key "<key>" cannot be cloned by structuredClone — typically caused by functions, DOM nodes, or class instances with private fields`
+
+The original platform error (typically a `DataCloneError`) is preserved on the `cause` property for debugging.
+
+**Why** — the cache enforces immutability by deep-cloning in and out. If the value you're caching isn't structured-clone-compatible, the library tells you loudly rather than letting your data quietly desynchronise.
+
+---
+
 ## Recommended handling
 
 For the recommended `instanceof`-based discrimination pattern and ready-made `getOrDefault` / `hasInCache` helpers, see [Error handling](../guides/error-handling.md).

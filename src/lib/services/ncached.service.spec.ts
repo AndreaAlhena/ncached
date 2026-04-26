@@ -446,3 +446,50 @@ describe('NcachedService (persistence)', () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 });
+
+describe('NcachedService (immutability)', () => {
+  let service: NcachedService;
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({});
+    service = TestBed.inject(NcachedService);
+  });
+
+  it('[set method] should not be affected by post-set mutation of the source object', () => {
+    const source = { name: 'Ada', tags: ['a', 'b'] };
+    service.set(source, 'users', 'me');
+    source.name = 'mutated';
+    source.tags.push('c');
+    expect(service.get<typeof source>('users', 'me')).toEqual({ name: 'Ada', tags: ['a', 'b'] });
+  });
+
+  it('[get method] should not let the consumer mutate the cached value via the returned reference', () => {
+    service.set({ name: 'Ada', tags: ['a'] }, 'users', 'me');
+    const first = service.get<{ name: string; tags: string[] }>('users', 'me');
+    first.name = 'mutated';
+    first.tags.push('b');
+    expect(service.get('users', 'me')).toEqual({ name: 'Ada', tags: ['a'] });
+  });
+
+  it('[getOrDefault method] should return a clone, not a live reference', () => {
+    service.set({ count: 1 }, 'mod', 'key');
+    const first = service.getOrDefault<{ count: number }>({ count: 0 }, 'mod', 'key');
+    first.count = 999;
+    expect(service.getOrDefault<{ count: number }>({ count: 0 }, 'mod', 'key')).toEqual({ count: 1 });
+  });
+
+  it('[cacheObservable method] should emit a clone on cache hit', (done) => {
+    service.set({ items: [1, 2] }, 'mod', 'key');
+    service.cacheObservable<{ items: number[] }>(of({ items: [99] }), {}, 'mod', 'key').subscribe(value => {
+      value.items.push(3);
+      expect(service.get('mod', 'key')).toEqual({ items: [1, 2] });
+      done();
+    });
+  });
+
+  it('[set method] should throw UncloneableValueError when value cannot be structured-cloned', () => {
+    expect(() => service.set(() => 1, 'mod', 'key'))
+      .toThrowError(NcachedServiceErrors.UncloneableValueError);
+  });
+});

@@ -19,6 +19,10 @@ get<T = any>(...keys: string[]): T
 - `keys` — the same key path you used in `set()`. At least **two** keys are required.
 - `T` — an optional generic type for the returned value. Strongly recommended.
 
+:::note
+**Returned values are deep clones** of the cached state (since v1.1.0). Mutating the returned object does not affect the cache. Calling `get()` twice produces two independent copies — convenient for safety, but worth noting if you were relying on reference equality between calls.
+:::
+
 ### Basic example
 
 ```typescript

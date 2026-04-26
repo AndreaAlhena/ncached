@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/ng-packagr/ng-package.schema.json",
   "dest": "./dist/ncached",
-  "allowedNonPeerDependencies": ["lz-string"],
+  "allowedNonPeerDependencies": ["@ungap/structured-clone", "lz-string"],
   "lib": {
     "entryFile": "src/public-api.ts"
   }
