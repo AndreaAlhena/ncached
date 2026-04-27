@@ -25,7 +25,7 @@
   "bugs": {
     "url": "https://github.com/AndreaAlhena/ncached/issues"
   },
-  "homepage": "https://github.com/AndreaAlhena/ncached#readme",
+  "homepage": "https://ng-ncached.andreatantimonaco.me",
   "scripts": {
     "ng": "ng",
     "build": "ng build",
