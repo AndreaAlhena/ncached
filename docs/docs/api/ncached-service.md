@@ -19,7 +19,10 @@ import { NcachedService } from 'ng-ncached';
 | [`set`](#set)                              | Store a value under a key path, optionally with TTL.                                     |
 | [`get`](#get)                              | Read a value back. Throws on miss / expired.                                             |
 | [`getOrDefault`](#getordefault)            | Read a value back, returning a default on miss / expired. Never throws for misses.       |
+| [`has`](#has)                              | Check if a non-expired entry exists at a path. Boolean. Never throws.                    |
 | [`cacheObservable`](#cacheobservable)      | Cache the result of an Observable, with optional TTL, fallback, and request dedup.       |
+| [`keys`](#keys)                            | List every complete key path under an optional prefix.                                   |
+| [`size`](#size)                            | Count non-expired entries across the cache.                                              |
 | [`remove`](#remove)                        | Delete a single cache entry. No-op on missing path.                                      |
 | [`clear`](#clear)                          | Delete an entire subtree / namespace. No-op on missing path.                             |
 | [`clearAll`](#clearall)                    | Wipe the in-memory cache (and `localStorage` entry if persistence is on).                |
@@ -118,6 +121,28 @@ This is the safe, ergonomic accessor — prefer it over wrapping `get()` in a `t
 
 ---
 
+### `has`
+
+```typescript
+has(...keys: string[]): boolean
+```
+
+Returns `true` if a non-expired entry exists at the given path, `false` otherwise. **Never throws** — invalid call shapes (fewer than 2 keys), missing paths, and expired entries all return `false`.
+
+- **`keys`** — same rules as `get()`. Min 2.
+
+Pure read — `has()` does **not** delete expired entries it encounters. If you want lazy cleanup of expired entries as a side effect, use `get()` (which throws and deletes) or `getOrDefault()` (which deletes silently).
+
+**Example**
+
+```typescript
+this._cache.set('Ada', 'users', 'currentName');
+this._cache.has('users', 'currentName'); // true
+this._cache.has('users', 'missing');     // false
+```
+
+---
+
 ### `cacheObservable`
 
 ```typescript
@@ -204,6 +229,50 @@ Wipes the entire in-memory cache. If [persistence](../guides/persistence-and-com
 
 ```typescript
 this._cache.clearAll();
+```
+
+---
+
+### `keys`
+
+```typescript
+keys(...prefix: string[]): string[][]
+```
+
+Lists every complete key path under the given prefix. Each returned path is a full key chain (prefix + leaf), suitable for direct use with `get`/`set`/`remove`. Expired entries are skipped (without being deleted). Returns an empty array when the prefix doesn't exist.
+
+- **`prefix`** — optional namespace prefix to scope the listing. Pass nothing to list every path.
+
+**Example**
+
+```typescript
+this._cache.set('Ada', 'users', 'byOrg', 'org-1', 'u1');
+this._cache.set('Alan', 'users', 'byOrg', 'org-1', 'u2');
+this._cache.set('Bob', 'users', 'byOrg', 'org-2', 'u1');
+
+this._cache.keys('users', 'byOrg', 'org-1');
+// [['users', 'byOrg', 'org-1', 'u1'], ['users', 'byOrg', 'org-1', 'u2']]
+
+this._cache.keys(); // every path in the cache
+```
+
+---
+
+### `size`
+
+```typescript
+size(): number
+```
+
+Returns the total count of non-expired entries across the entire cache. Pure read — does not delete the expired entries it skips during traversal.
+
+**Example**
+
+```typescript
+this._cache.set('a', 'mod', 'k1');
+this._cache.set('b', 'mod', 'k2');
+this._cache.set('c', 'other', 'k1', 'k2');
+this._cache.size(); // 3
 ```
 
 ---

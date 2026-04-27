@@ -91,30 +91,13 @@ function diagnoseMiss(cache: any, ...keys: string[]): 'never-seen' | 'expired' |
 
 In practice, `getOrDefault()` covers ~95 % of read sites and you don't need to make this distinction. If you do, prefer **explicit invalidation** ([Invalidation](./invalidation.md)) over inferring from errors.
 
-## A `hasInCache` helper
+## Just need a boolean check?
 
-If you just want a boolean check without reading the value:
+Use the built-in [`has(...keys)`](../api/ncached-service.md#has) — it returns `true`/`false` without throwing, and skips the deep clone that `get()` would perform:
 
 ```typescript
-import { NcachedService, NcachedServiceErrors } from 'ng-ncached';
-
-export function hasInCache(
-  cache: NcachedService,
-  ...keys: string[]
-): boolean {
-  try {
-    cache.get(...keys);
-    return true;
-  } catch (error) {
-    if (
-      error instanceof NcachedServiceErrors.KeyNotFound ||
-      error instanceof NcachedServiceErrors.MapNotFound ||
-      error instanceof NcachedServiceErrors.ValueNotFound
-    ) {
-      return false;
-    }
-    throw error;
-  }
+if (this._cache.has('users', 'currentName')) {
+  // ...entry is present and not expired
 }
 ```
 

@@ -493,3 +493,120 @@ describe('NcachedService (immutability)', () => {
       .toThrowError(NcachedServiceErrors.UncloneableValueError);
   });
 });
+
+describe('NcachedService (inspection)', () => {
+  let service: NcachedService;
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({});
+    service = TestBed.inject(NcachedService);
+  });
+
+  describe('has', () => {
+    it('should return true when a non-expired entry exists at the path', () => {
+      service.set('Ada', 'users', 'currentName');
+      expect(service.has('users', 'currentName')).toBeTrue();
+    });
+
+    it('should return false when the path does not exist', () => {
+      expect(service.has('users', 'currentName')).toBeFalse();
+    });
+
+    it('should return false when fewer than two keys are provided', () => {
+      service.set('Ada', 'users', 'currentName');
+      expect(service.has('users')).toBeFalse();
+    });
+
+    it('should return false when the entry is expired', () => {
+      service.set('value', 'mod', 'key', { ttl: 1 });
+      const map = (service as any)._cache['mod'] as Map<string, any>;
+      map.get('key').expiresAt = Date.now() - 1000;
+      expect(service.has('mod', 'key')).toBeFalse();
+    });
+
+    it('should not delete expired entries it encounters (pure read)', () => {
+      service.set('value', 'mod', 'key', { ttl: 1 });
+      const map = (service as any)._cache['mod'] as Map<string, any>;
+      map.get('key').expiresAt = Date.now() - 1000;
+      service.has('mod', 'key');
+      expect(map.has('key')).toBeTrue();
+    });
+
+    it('should work for deeply nested paths', () => {
+      service.set('deep', 'a', 'b', 'c', 'd');
+      expect(service.has('a', 'b', 'c', 'd')).toBeTrue();
+      expect(service.has('a', 'b', 'c', 'missing')).toBeFalse();
+    });
+  });
+
+  describe('size', () => {
+    it('should return 0 for an empty cache', () => {
+      expect(service.size()).toBe(0);
+    });
+
+    it('should count entries across all namespaces', () => {
+      service.set('a', 'mod1', 'k1');
+      service.set('b', 'mod1', 'k2');
+      service.set('c', 'mod2', 'k1');
+      expect(service.size()).toBe(3);
+    });
+
+    it('should count entries in deeply nested namespaces', () => {
+      service.set('a', 'root', 'child', 'k1');
+      service.set('b', 'root', 'child', 'k2');
+      service.set('c', 'root', 'other', 'k1');
+      expect(service.size()).toBe(3);
+    });
+
+    it('should skip expired entries without deleting them', () => {
+      service.set('a', 'mod', 'k1');
+      service.set('b', 'mod', 'k2', { ttl: 1 });
+      const map = (service as any)._cache['mod'] as Map<string, any>;
+      map.get('k2').expiresAt = Date.now() - 1000;
+      expect(service.size()).toBe(1);
+      expect(map.has('k2')).toBeTrue();
+    });
+  });
+
+  describe('keys', () => {
+    it('should return an empty array for an empty cache', () => {
+      expect(service.keys()).toEqual([]);
+    });
+
+    it('should list every path when called with no prefix', () => {
+      service.set('a', 'mod1', 'k1');
+      service.set('b', 'mod2', 'k1');
+      expect(service.keys().sort()).toEqual([['mod1', 'k1'], ['mod2', 'k1']].sort());
+    });
+
+    it('should scope the listing to the given prefix', () => {
+      service.set('a', 'users', 'byOrg', 'org-1', 'u1');
+      service.set('b', 'users', 'byOrg', 'org-1', 'u2');
+      service.set('c', 'users', 'byOrg', 'org-2', 'u1');
+      expect(service.keys('users', 'byOrg', 'org-1').sort()).toEqual([
+        ['users', 'byOrg', 'org-1', 'u1'],
+        ['users', 'byOrg', 'org-1', 'u2'],
+      ].sort());
+    });
+
+    it('should return an empty array when the prefix does not exist', () => {
+      service.set('a', 'mod', 'k1');
+      expect(service.keys('nonexistent')).toEqual([]);
+    });
+
+    it('should list entries when the prefix points directly at a Map namespace', () => {
+      service.set('a', 'users', 'k1');
+      service.set('b', 'users', 'k2');
+      expect(service.keys('users').sort()).toEqual([['users', 'k1'], ['users', 'k2']].sort());
+    });
+
+    it('should skip expired entries', () => {
+      service.set('a', 'mod', 'k1');
+      service.set('b', 'mod', 'k2', { ttl: 1 });
+      const map = (service as any)._cache['mod'] as Map<string, any>;
+      map.get('k2').expiresAt = Date.now() - 1000;
+      expect(service.keys('mod')).toEqual([['mod', 'k1']]);
+    });
+  });
+});

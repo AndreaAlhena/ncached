@@ -6,6 +6,21 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.0] - 2026-04-27
+
+### Added
+
+- **`has(...keys): boolean`** — non-throwing existence check. Returns `true` when a non-expired entry exists at the given path, `false` otherwise. Pure read — does not delete expired entries it encounters.
+- **`size(): number`** — total count of non-expired entries across the entire cache.
+- **`keys(...prefix): string[][]`** — lists every complete key path under an optional prefix. Useful for inspection and iteration.
+
+### Changed
+
+- `package.json` `homepage` now points at the docs site (`https://ng-ncached.andreatantimonaco.me`) instead of the GitHub README.
+- `README.md` slimmed down — purpose, install, quick start, link to the full docs.
+
+---
+
 ## [1.1.0] - 2026-04-26
 
 ### Added

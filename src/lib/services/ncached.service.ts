@@ -92,6 +92,68 @@ export class NcachedService {
     }
 
     /**
+     * Recursively walks the cache tree starting from `node` and pushes the full key path
+     * of every non-expired Map entry into `paths`. Used internally by keys().
+     *
+     * @param node - The current node being traversed (either an ICacheObject or a leaf Map)
+     * @param currentPath - The key path that led to `node` (accumulated during recursion)
+     * @param paths - Output array, mutated in place with discovered key paths
+     */
+    private _collectKeyPaths(node: ICacheObject | Map<string, ICacheEntry<any>>, currentPath: string[], paths: string[][]): void {
+      const now = Date.now();
+
+      if (node instanceof Map) {
+        for (const [mapKey, entry] of node.entries()) {
+          const isExpired = entry.expiresAt !== null && now > entry.expiresAt;
+
+          if (!isExpired) {
+            paths.push([...currentPath, mapKey]);
+          }
+        }
+
+        return;
+      }
+
+      for (const key of Object.keys(node)) {
+        const child = node[key];
+
+        if (child instanceof Map || (child && typeof child === 'object')) {
+          this._collectKeyPaths(child as ICacheObject | Map<string, ICacheEntry<any>>, [...currentPath, key], paths);
+        }
+      }
+    }
+
+    /**
+     * Recursively counts non-expired Map entries reachable from `node`.
+     * Used internally by size(). Does not mutate the cache.
+     *
+     * @param node - The current ICacheObject being walked
+     * @returns The count of non-expired entries below this node
+     */
+    private _countEntries(node: ICacheObject): number {
+      let count = 0;
+      const now = Date.now();
+
+      for (const key of Object.keys(node)) {
+        const child = node[key];
+
+        if (child instanceof Map) {
+          for (const entry of child.values()) {
+            const isExpired = entry.expiresAt !== null && now > entry.expiresAt;
+
+            if (!isExpired) {
+              count++;
+            }
+          }
+        } else if (child && typeof child === 'object') {
+          count += this._countEntries(child as ICacheObject);
+        }
+      }
+
+      return count;
+    }
+
+    /**
      * Deserializes a JSON string into an ICacheObject, reconstructing Maps.
      * Discards expired entries during reconstruction.
      *
@@ -190,6 +252,33 @@ export class NcachedService {
       } catch {
         this._cache = {};
       }
+    }
+
+    /**
+     * Walks the cache tree following each key in `prefix` in order, returning the node
+     * reached at the end. Returns null if any key in the prefix doesn't exist or if the
+     * traversal hits a Map mid-prefix (which is invalid — Maps are leaves). Used by keys().
+     *
+     * @param root - The cache root to start from
+     * @param prefix - Sequence of keys to follow
+     * @returns The node at the end of the prefix, or null if the prefix is invalid
+     */
+    private _navigateToPrefix(root: ICacheObject, prefix: string[]): ICacheObject | Map<string, ICacheEntry<any>> | null {
+      let current: ICacheObject | Map<string, ICacheEntry<any>> = root;
+
+      for (const key of prefix) {
+        if (current instanceof Map) {
+          return null;
+        }
+
+        if (!(key in current)) {
+          return null;
+        }
+
+        current = current[key] as ICacheObject | Map<string, ICacheEntry<any>>;
+      }
+
+      return current;
     }
 
     /**
@@ -495,6 +584,80 @@ export class NcachedService {
     }
 
     /**
+     * Checks whether a cache entry exists at the given key path and is not expired.
+     * Pure read — does not delete expired entries it encounters (use get() if you want
+     * lazy cleanup as a side effect). Never throws; returns false on any miss or
+     * malformed call.
+     *
+     * @param keys - Navigation keys (min 2)
+     * @returns true if a non-expired entry exists at the path, false otherwise
+     *
+     * @example
+     * ```typescript
+     * cache.set('Ada', 'users', 'currentName');
+     * cache.has('users', 'currentName'); // true
+     * cache.has('users', 'missing');     // false
+     * cache.has('only-one-key');         // false (min 2 keys)
+     * ```
+     */
+    public has(...keys: string[]): boolean {
+      if (keys.length < 2) {
+        return false;
+      }
+
+      try {
+        const map = this._findMap<ICacheEntry<any>>(this._cache, ...keys.slice(0, keys.length - 1));
+        const mapKey = keys[keys.length - 1];
+
+        if (!map.has(mapKey)) {
+          return false;
+        }
+
+        const entry = map.get(mapKey)!;
+        const isExpired = entry.expiresAt !== null && Date.now() > entry.expiresAt;
+
+        return !isExpired;
+      } catch {
+        return false;
+      }
+    }
+
+    /**
+     * Lists every complete key path under the given prefix.
+     * Each returned path is the full key chain (prefix + leaf), suitable for use with
+     * get/set/remove. Expired entries are skipped. Returns an empty array when the
+     * prefix does not exist.
+     *
+     * Pass no arguments to list every path in the cache.
+     *
+     * @param prefix - Optional namespace prefix to scope the listing
+     * @returns Array of complete key paths
+     *
+     * @example
+     * ```typescript
+     * cache.set('Ada', 'users', 'byOrg', 'org-1', 'u1');
+     * cache.set('Alan', 'users', 'byOrg', 'org-1', 'u2');
+     * cache.set('Bob', 'users', 'byOrg', 'org-2', 'u1');
+     *
+     * cache.keys('users', 'byOrg', 'org-1');
+     * // [['users', 'byOrg', 'org-1', 'u1'], ['users', 'byOrg', 'org-1', 'u2']]
+     *
+     * cache.keys(); // every path in the cache
+     * ```
+     */
+    public keys(...prefix: string[]): string[][] {
+      const node = this._navigateToPrefix(this._cache, prefix);
+
+      if (node === null) {
+        return [];
+      }
+
+      const paths: string[][] = [];
+      this._collectKeyPaths(node, [...prefix], paths);
+      return paths;
+    }
+
+    /**
      * Removes a specific cache entry identified by the given keys.
      * The last key is the Map entry key; preceding keys navigate the hierarchy.
      * No-op if the path or key does not exist.
@@ -556,5 +719,23 @@ export class NcachedService {
       }
 
       this._setInCache<T>(this._cache, value, options, ...keys);
+    }
+
+    /**
+     * Returns the total number of non-expired entries across the entire cache.
+     * Pure read — does not delete the expired entries it skips during traversal.
+     *
+     * @returns The count of currently-valid entries
+     *
+     * @example
+     * ```typescript
+     * cache.set('a', 'mod', 'k1');
+     * cache.set('b', 'mod', 'k2');
+     * cache.set('c', 'other', 'k1', 'k2');
+     * cache.size(); // 3
+     * ```
+     */
+    public size(): number {
+      return this._countEntries(this._cache);
     }
 }
