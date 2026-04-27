@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { of, throwError, Subject, Observable } from 'rxjs';
 
 import { NcachedService } from './ncached.service';
+import { NcachedModule } from '../ncached.module';
 import { NcachedServiceErrors } from '../namespaces/ncached-service-errors.namespace';
 import { NCACHED_CONFIG } from '../tokens/ncached-config.token';
 import { INcachedConfig } from '../interfaces/ncached-config.interface';
@@ -608,5 +609,30 @@ describe('NcachedService (inspection)', () => {
       map.get('k2').expiresAt = Date.now() - 1000;
       expect(service.keys('mod')).toEqual([['mod', 'k1']]);
     });
+  });
+});
+
+describe('NcachedModule.forRoot', () => {
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  it('should register the NCACHED_CONFIG token with the supplied config', () => {
+    const config: INcachedConfig = { persistence: { enabled: false } };
+    TestBed.configureTestingModule({
+      imports: [NcachedModule.forRoot(config)],
+    });
+
+    expect(TestBed.inject(NCACHED_CONFIG)).toBe(config);
+  });
+
+  it('should give the injected NcachedService access to the config', () => {
+    const config: INcachedConfig = { persistence: { enabled: false } };
+    TestBed.configureTestingModule({
+      imports: [NcachedModule.forRoot(config)],
+    });
+
+    const service = TestBed.inject(NcachedService);
+    expect((service as any)._config).toBe(config);
   });
 });

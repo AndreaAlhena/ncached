@@ -8,9 +8,13 @@ sidebar_position: 8
 
 `ng-ncached` works with **zero configuration** out of the box — just inject `NcachedService`. Configuration only kicks in when you want **persistence**.
 
-## The `provideNcachedConfig()` provider
+## Two ways to configure
 
-The standard way to configure the library is via `provideNcachedConfig()`, which wires up the `NCACHED_CONFIG` injection token under the hood:
+ng-ncached ships two equivalent configuration entry points — pick whichever matches your app's bootstrap style. Both wire up the same `NCACHED_CONFIG` injection token under the hood.
+
+### Standalone (Angular 14+) — `provideNcachedConfig()`
+
+The recommended path for modern apps using `bootstrapApplication`:
 
 ```typescript
 // app.config.ts
@@ -28,16 +32,20 @@ export const appConfig: ApplicationConfig = {
 };
 ```
 
-Or in a classic `NgModule`:
+You can also use it inside any `providers: []` array — feature `NgModule`s, route configs, or component-scoped providers.
+
+### NgModule (Angular 12+) — `NcachedModule.forRoot()`
+
+For apps still using the classic `NgModule`-based bootstrap:
 
 ```typescript
 // app.module.ts
 import { NgModule } from '@angular/core';
-import { provideNcachedConfig } from 'ng-ncached';
+import { NcachedModule } from 'ng-ncached';
 
 @NgModule({
-  providers: [
-    provideNcachedConfig({
+  imports: [
+    NcachedModule.forRoot({
       persistence: {
         enabled: true,
       },
@@ -46,6 +54,8 @@ import { provideNcachedConfig } from 'ng-ncached';
 })
 export class AppModule {}
 ```
+
+`NcachedModule.forRoot()` delegates to `provideNcachedConfig()` internally, so both routes give you the exact same runtime behaviour.
 
 ## The `INcachedConfig` shape
 

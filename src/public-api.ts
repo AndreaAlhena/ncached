@@ -14,8 +14,14 @@ export * from './lib/interfaces/compressor.interface';
 export * from './lib/interfaces/ncached-config.interface';
 export * from './lib/interfaces/set-options.interface';
 
+// Modules
+export * from './lib/ncached.module';
+
 // Namespaces
 export * from './lib/namespaces/ncached-service-errors.namespace';
+
+// Providers
+export * from './lib/provide-ncached';
 
 // Services
 export * from './lib/services/ncached.service';

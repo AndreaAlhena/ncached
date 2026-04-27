@@ -10,12 +10,14 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`NcachedModule.forRoot(config)`** — NgModule entry point for Angular 12-13 (or any project still on classic NgModule bootstrap). Delegates to `provideNcachedConfig()`, so both routes share identical runtime behaviour.
 - **`has(...keys): boolean`** — non-throwing existence check. Returns `true` when a non-expired entry exists at the given path, `false` otherwise. Pure read — does not delete expired entries it encounters.
 - **`size(): number`** — total count of non-expired entries across the entire cache.
 - **`keys(...prefix): string[][]`** — lists every complete key path under an optional prefix. Useful for inspection and iteration.
 
 ### Changed
 
+- `provideNcachedConfig()` moved from `lib/tokens/ncached-config.token.ts` to its own `lib/provide-ncached.ts` (a provider isn't a token). Public import path (`from 'ng-ncached'`) is unchanged — this is a non-breaking internal refactor.
 - `package.json` `homepage` now points at the docs site (`https://ng-ncached.andreatantimonaco.me`) instead of the GitHub README.
 - `README.md` slimmed down — purpose, install, quick start, link to the full docs.
 

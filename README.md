@@ -42,7 +42,9 @@ export class MyComponent {
 
 ## Enable localStorage persistence (optional)
 
-The cache is in-memory only by default. To make it survive page reloads, opt in via `provideNcachedConfig` in your app providers — optionally with a compressor to shrink the snapshot:
+The cache is in-memory only by default. To make it survive page reloads, opt in — optionally with a compressor to shrink the snapshot.
+
+**Standalone (Angular 14+):**
 
 ```typescript
 // app.config.ts
@@ -59,6 +61,26 @@ export const appConfig: ApplicationConfig = {
     }),
   ],
 };
+```
+
+**NgModule (Angular 12+):**
+
+```typescript
+// app.module.ts
+import { NgModule } from '@angular/core';
+import { LzStringCompressor, NcachedModule } from 'ng-ncached';
+
+@NgModule({
+  imports: [
+    NcachedModule.forRoot({
+      persistence: {
+        enabled: true,
+        compressor: new LzStringCompressor(),
+      },
+    }),
+  ],
+})
+export class AppModule {}
 ```
 
 → See the [docs](https://ng-ncached.andreatantimonaco.me) for guides on TTL, Observable caching, persistence, compression, the full API reference, and more.

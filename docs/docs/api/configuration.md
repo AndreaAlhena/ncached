@@ -6,10 +6,15 @@ sidebar_position: 5
 
 # Configuration
 
-Three exports drive configuration: an interface, an injection token, and a convenience provider factory.
+Four exports drive configuration: an interface, an injection token, a standalone provider factory, and an `NgModule` for legacy projects.
 
 ```typescript
-import { INcachedConfig, NCACHED_CONFIG, provideNcachedConfig } from 'ng-ncached';
+import {
+  INcachedConfig,
+  NCACHED_CONFIG,
+  NcachedModule,
+  provideNcachedConfig,
+} from 'ng-ncached';
 ```
 
 ## `INcachedConfig`
@@ -79,6 +84,35 @@ export const appConfig: ApplicationConfig = {
     }),
   ],
 };
+```
+
+## `NcachedModule`
+
+```typescript
+class NcachedModule {
+  static forRoot(config: INcachedConfig): ModuleWithProviders<NcachedModule>;
+}
+```
+
+NgModule wrapper around `provideNcachedConfig()` for Angular 12-13 consumers (or any project still using the classic NgModule-based bootstrap). `forRoot()` delegates to `provideNcachedConfig()` under the hood, so both entry points produce identical runtime behaviour.
+
+**Example**
+
+```typescript
+import { NgModule } from '@angular/core';
+import { LzStringCompressor, NcachedModule } from 'ng-ncached';
+
+@NgModule({
+  imports: [
+    NcachedModule.forRoot({
+      persistence: {
+        enabled: true,
+        compressor: new LzStringCompressor(),
+      },
+    }),
+  ],
+})
+export class AppModule {}
 ```
 
 See [Configuration guide](../guides/configuration.md) for full setup walkthroughs and [Persistence & compression](../guides/persistence-and-compression.md) for what each option actually does at runtime.
