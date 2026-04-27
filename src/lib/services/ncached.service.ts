@@ -72,6 +72,58 @@ export class NcachedService {
     }
 
     /**
+     * Builds a fresh ICacheEntry wrapping `value` with the appropriate expiration
+     * timestamp derived from the optional ISetOptions. The value is deep-cloned on
+     * the way in so the cache holds an isolated copy.
+     *
+     * @template T The type of the value being stored
+     * @param value - The value to wrap
+     * @param options - Optional set options (TTL)
+     * @param mapKey - The Map entry key the value will be stored under (forwarded to _clone for error diagnostics)
+     * @returns A new ICacheEntry ready to be inserted into the leaf Map
+     */
+    private _buildCacheEntry<T>(value: T, options: ISetOptions | undefined, mapKey: string): ICacheEntry<T> {
+      return {
+        value: this._clone(value, mapKey),
+        expiresAt: options?.ttl != null ? Date.now() + options.ttl : null
+      };
+    }
+
+    /**
+     * Builds the shared RxJS pipeline used by cacheObservable() on a cache miss.
+     * The pipeline writes the emitted value into the cache, swaps source errors for
+     * a user-supplied defaultValue when present, removes itself from the in-flight
+     * registry on completion or error, and shares a single subscription across
+     * concurrent callers via shareReplay.
+     *
+     * @template T The type of the Observable's emission
+     * @param source - The upstream observable being cached
+     * @param options - cacheObservable options (ttl, defaultValue)
+     * @param keys - Cache keys (the path the emitted value will be stored under)
+     * @param flightKey - The serialized key used to track this in-flight subscription
+     * @returns A shared Observable that emits the freshly fetched and cached value
+     */
+    private _buildSourcePipeline<T>(source: Observable<T>, options: ICacheObservableOptions<T>, keys: string[], flightKey: string): Observable<T> {
+      return source.pipe(
+        tap(value => {
+          const setOptions = options.ttl != null ? { ttl: options.ttl } : undefined;
+          this._setInCache<T>(this._cache, value, setOptions, ...keys);
+        }),
+        catchError(error => {
+          if ('defaultValue' in options) {
+            return of(options.defaultValue as T);
+          }
+
+          return throwError(() => error);
+        }),
+        finalize(() => {
+          this._inflight.delete(flightKey);
+        }),
+        shareReplay({ bufferSize: 1, refCount: true })
+      );
+    }
+
+    /**
      * Deep-clones a value using the platform's native structuredClone when available,
      * falling back to the @ungap/structured-clone polyfill on older runtimes.
      * Wraps platform DataCloneError instances in NcachedServiceErrors.UncloneableValueError
@@ -104,9 +156,7 @@ export class NcachedService {
 
       if (node instanceof Map) {
         for (const [mapKey, entry] of node.entries()) {
-          const isExpired = entry.expiresAt !== null && now > entry.expiresAt;
-
-          if (!isExpired) {
+          if (!this._isExpired(entry, now)) {
             paths.push([...currentPath, mapKey]);
           }
         }
@@ -139,9 +189,7 @@ export class NcachedService {
 
         if (child instanceof Map) {
           for (const entry of child.values()) {
-            const isExpired = entry.expiresAt !== null && now > entry.expiresAt;
-
-            if (!isExpired) {
+            if (!this._isExpired(entry, now)) {
               count++;
             }
           }
@@ -191,9 +239,8 @@ export class NcachedService {
       }
 
       const entry = map.get(mapKey)!;
-      const isExpired = entry.expiresAt !== null && Date.now() > entry.expiresAt;
 
-      if (isExpired) {
+      if (this._isExpired(entry)) {
         map.delete(mapKey);
         throw new NcachedServiceErrors.ValueNotFound(mapKey);
       }
@@ -237,7 +284,7 @@ export class NcachedService {
      * On any failure (missing data, invalid JSON, decompression error), resets to an empty cache.
      */
     private _hydrate(): void {
-      const storageKey = this._config?.persistence?.storageKey ?? 'ncached_snapshot';
+      const storageKey = this._resolveStorageKey();
 
       try {
         const raw = localStorage.getItem(storageKey);
@@ -252,6 +299,19 @@ export class NcachedService {
       } catch {
         this._cache = {};
       }
+    }
+
+    /**
+     * Checks whether an ICacheEntry has passed its expiration timestamp.
+     * Centralises the TTL comparison so callers stay declarative — they ask
+     * "is this expired?" rather than reimplementing the comparison.
+     *
+     * @param entry - The cache entry to check
+     * @param now - Optional cached "now" timestamp (handy in loops to avoid repeated Date.now() calls)
+     * @returns true if the entry has an expiresAt in the past, false otherwise
+     */
+    private _isExpired(entry: ICacheEntry<unknown>, now: number = Date.now()): boolean {
+      return entry.expiresAt !== null && now > entry.expiresAt;
     }
 
     /**
@@ -304,7 +364,7 @@ export class NcachedService {
      * logs a warning and continues — the app keeps working, just without persistence.
      */
     private _persist(): void {
-      const storageKey = this._config?.persistence?.storageKey ?? 'ncached_snapshot';
+      const storageKey = this._resolveStorageKey();
 
       try {
         const json = this._serialize();
@@ -322,6 +382,17 @@ export class NcachedService {
       window.addEventListener('beforeunload', () => {
         this._persist();
       });
+    }
+
+    /**
+     * Returns the localStorage key currently in effect for the persistence layer,
+     * applying the documented `'ncached_snapshot'` default when no override is set.
+     * Centralises the fallback so hydrate / persist / clearAll all stay in lockstep.
+     *
+     * @returns The configured storage key, or the default
+     */
+    private _resolveStorageKey(): string {
+      return this._config?.persistence?.storageKey ?? 'ncached_snapshot';
     }
 
     /**
@@ -382,6 +453,7 @@ export class NcachedService {
      * @param keys - Remaining navigation keys
      */
     private _setInCache<T = any>(cacheObj: ICacheObject, value: T, options: ISetOptions | undefined, ...keys: string[]): void {
+      // Recurse through intermediate namespaces, auto-creating empty ICacheObject nodes as needed.
       if (keys.length > 2) {
         if (!cacheObj[keys[0]]) {
           cacheObj[keys[0]] = {};
@@ -391,16 +463,15 @@ export class NcachedService {
         return;
       }
 
+      // Leaf step: ensure the target Map exists, then build and insert the entry.
       if (!(cacheObj[keys[0]] instanceof Map)) {
         cacheObj[keys[0]] = new Map();
       }
 
-      const entry: ICacheEntry<T> = {
-        value: this._clone(value, keys[1]),
-        expiresAt: options?.ttl != null ? Date.now() + options.ttl : null
-      };
+      const leafMap = cacheObj[keys[0]] as Map<string, ICacheEntry<T>>;
+      const entry = this._buildCacheEntry(value, options, keys[1]);
 
-      (cacheObj[keys[0]] as Map<string, ICacheEntry<T>>).set(keys[1], entry);
+      leafMap.set(keys[1], entry);
     }
 
     /**
@@ -425,17 +496,16 @@ export class NcachedService {
         return;
       }
 
-      let target: ICacheObject = this._cache;
+      const parentKeys = keys.slice(0, keys.length - 1);
+      const targetKey = keys[keys.length - 1];
+      const parent = this._navigateToPrefix(this._cache, parentKeys);
 
-      for (let i = 0; i < keys.length - 1; i++) {
-        if (!(keys[i] in target)) {
-          return;
-        }
-
-        target = target[keys[i]] as ICacheObject;
+      // Parent must exist and be an ICacheObject — clear() can't reach into a Map's entries.
+      if (parent === null || parent instanceof Map) {
+        return;
       }
 
-      delete target[keys[keys.length - 1]];
+      delete parent[targetKey];
     }
 
     /**
@@ -454,14 +524,14 @@ export class NcachedService {
     public clearAll(): void {
       this._cache = {};
 
-      if (this._config?.persistence?.enabled) {
-        const storageKey = this._config.persistence.storageKey ?? 'ncached_snapshot';
+      if (!this._config?.persistence?.enabled) {
+        return;
+      }
 
-        try {
-          localStorage.removeItem(storageKey);
-        } catch {
-          // Ignore — clearing storage is best-effort
-        }
+      try {
+        localStorage.removeItem(this._resolveStorageKey());
+      } catch {
+        // Ignore — clearing storage is best-effort
       }
     }
 
@@ -500,35 +570,22 @@ export class NcachedService {
      * ```
      */
     public cacheObservable<T = any>(source: Observable<T>, options: ICacheObservableOptions<T>, ...keys: string[]): Observable<T> {
+      // Cache hit: emit the cached value without ever subscribing to the source.
       try {
-        const cached = this.get<T>(...keys);
-
-        return of(cached);
+        return of(this.get<T>(...keys));
       } catch {
-        // Not in cache or expired — proceed
+        // Not in cache or expired — fall through to fetch.
       }
 
+      // Dedup: if an identical request is already in flight, share its subscription.
       const flightKey = keys.join('::');
 
       if (this._inflight.has(flightKey)) {
         return this._inflight.get(flightKey)! as Observable<T>;
       }
 
-      const shared$ = source.pipe(
-        tap(value => {
-          this._setInCache<T>(this._cache, value, options.ttl != null ? { ttl: options.ttl } : undefined, ...keys);
-        }),
-        catchError(error => {
-          if ('defaultValue' in options) {
-            return of(options.defaultValue as T);
-          }
-          return throwError(() => error);
-        }),
-        finalize(() => {
-          this._inflight.delete(flightKey);
-        }),
-        shareReplay({ bufferSize: 1, refCount: true })
-      );
+      // Cache miss: build the shared pipeline, register it, and return it.
+      const shared$ = this._buildSourcePipeline<T>(source, options, keys, flightKey);
 
       this._inflight.set(flightKey, shared$);
 
@@ -614,9 +671,8 @@ export class NcachedService {
         }
 
         const entry = map.get(mapKey)!;
-        const isExpired = entry.expiresAt !== null && Date.now() > entry.expiresAt;
 
-        return !isExpired;
+        return !this._isExpired(entry);
       } catch {
         return false;
       }
@@ -680,13 +736,16 @@ export class NcachedService {
         return;
       }
 
-      try {
-        const map = this._findMap(this._cache, ...keys.slice(0, keys.length - 1));
+      const parentKeys = keys.slice(0, keys.length - 1);
+      const mapKey = keys[keys.length - 1];
+      const parent = this._navigateToPrefix(this._cache, parentKeys);
 
-        map.delete(keys[keys.length - 1]);
-      } catch {
-        // Path doesn't exist — nothing to remove
+      // Parent must resolve to a Map — anything else (missing path or namespace node) is a no-op.
+      if (!(parent instanceof Map)) {
+        return;
       }
+
+      parent.delete(mapKey);
     }
 
     /**
